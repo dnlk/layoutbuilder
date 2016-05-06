@@ -1,0 +1,27 @@
+<html>
+  <head>
+    <script src="build/HelloWorld.js"></script>
+  </head>
+
+  <body>
+    <div id="elm-div">
+    </div>
+
+    <script>
+      var div = document.getElementById("elm-div");
+
+  	  var initial_value = {
+        position: [20, 20], dimensions: [400, 200], children: [
+          {position: [10, 20], dimensions: [100, 100], children: [
+            {position: [10, 20], dimensions: [20, 20], children: []},
+            {position: [60, 30], dimensions: [30, 30], children: []}
+          ]},
+          {position: [210, 20], dimensions: [50, 100], children: []}
+        ]
+      };
+  
+      var myApp = Elm.embed(Elm.HelloWorld, div, {jsonMessage: JSON.stringify(initial_value)});
+    </script>
+  </body>
+
+</html>

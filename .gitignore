@@ -1,0 +1,8 @@
+# Git
+.git/
+
+# Elm environment
+elm-stuff/
+
+# Compiled
+build/
