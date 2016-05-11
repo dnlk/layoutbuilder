@@ -1,39 +1,40 @@
 module HelloWorld where
 
+import Debug
 import List
-import Html exposing (Html, Attribute, node, div, toElement)
+import Html exposing (Html, Attribute, node, div, toElement, text)
 import Html.Attributes exposing (style, attribute)
+import Html.Events exposing (onClick, onWithOptions)
 import Signal
-import Graphics.Element exposing (show)
-import Json.Decode exposing (..)
-import Json.Decode.Extra exposing (lazy)
+import Graphics.Element exposing (show, above)
 import Result exposing (Result)
+import Signal.Extra exposing (foldp')
+import Json.Decode exposing (value)
 
-{- Type Definitions-}
 
-type alias Dimensions = (Int, Int)
-type alias Position = (Int, Int)
-
-type  JsonTree = JsonTree JsonRecord
-type alias JsonRecord = 
-  { dimensions : Dimensions
-  , position : Position
-  , children : List JsonTree
-  }
-
-type ModelTree = ModelTree ModelRecord
-type alias ModelRecord =
-  { dimensions : Dimensions
-  , position : Position
-  , children : List ModelTree
-  , nodeId : Int
-  , pathFromRoot : List Int
-  }
+import Decoder exposing (decodeJson)
+import Types exposing (..)
 
 
 {- Ports -}
 
 port jsonMessage : Signal (String)
+
+{- Signals -}
+
+clickedElement : Signal.Mailbox (Maybe (List Int))
+clickedElement = Signal.mailbox Nothing
+
+triggerSig : Signal Trigger
+triggerSig = 
+  Signal.merge
+    (Signal.map Init jsonMessage)
+    (Signal.map ClickEl clickedElement.signal)
+
+
+onClickNoProp : Signal.Address a -> a -> Attribute   
+onClickNoProp address message =
+    onWithOptions "click" { stopPropagation = True, preventDefault = False } value (\_ -> Signal.message address message)
 
 
 {- General Utils -}
@@ -48,35 +49,50 @@ listRange : Int -> List Int
 listRange = List.reverse << listRangeRev
 
 
-{- Json Decoding -}
+clickableAttribute : List Int -> Attribute
+clickableAttribute pathFromRoot =
+  onClickNoProp clickedElement.address (Just pathFromRoot)
 
-pointDecoder : Decoder (Int, Int)
-pointDecoder = tuple2 (,) int int
 
-decoder =
-  map JsonTree <|
-    object3
-      JsonRecord
-      ("dimensions" := pointDecoder)
-      ("position" := pointDecoder)
-      ("children" := list (lazy (\_ -> decoder)))
+modifyDesc : List Int -> ModelTree -> (ModelTree -> ModelTree) -> ModelTree
+modifyDesc pathToDesc completeTree newSubTreeFunc =
 
-unpackDecodedJson : Result String JsonTree -> JsonTree
-unpackDecodedJson result =
-  case result of
-    Err _ -> JsonTree {dimensions=(0,0), position=(0,0), children=[]}
-    Ok jsonTree -> jsonTree
+  case pathToDesc of
+    [] ->
+      EmptyModel
 
-decodeJson : String -> JsonTree
-decodeJson jsonStr =
-  unpackDecodedJson <| decodeString decoder jsonStr
+    x :: [] ->
+      if x == (getModelRecord completeTree).nodeId
+      then newSubTreeFunc completeTree
+      else completeTree
 
+    x :: xs ->
+      let
+        modelRecord = getModelRecord completeTree
+        newChildren = 
+          if x == modelRecord.nodeId
+          then List.map (\mTree -> modifyDesc xs mTree newSubTreeFunc) modelRecord.children
+          else (getModelRecord completeTree).children
+      in
+        ModelTree { modelRecord | children = newChildren }
+
+
+addController : ModelTree -> ModelTree
+addController mTree =
+  case mTree of
+    (ModelTree modelRecord) ->
+      ModelTree { modelRecord | controllers = [{}] }
+    EmptyModel -> mTree
+
+addControllerToTree : List Int -> ModelTree -> ModelTree
+addControllerToTree pathToDesc completeTree =
+    modifyDesc pathToDesc completeTree addController
 
 {- Intermediate model represntation -}
 
 modelFromJson pathFromRoot nodeId (JsonTree jsonTree) =
   let
-    nextPathFromRoot = nodeId :: pathFromRoot
+    nextPathFromRoot = pathFromRoot ++ [nodeId]
     childrenNodeIds = listRange (List.length jsonTree.children)
     children =
       List.map2
@@ -88,9 +104,19 @@ modelFromJson pathFromRoot nodeId (JsonTree jsonTree) =
       { dimensions = jsonTree.dimensions
       , position = jsonTree.position
       , nodeId = nodeId
-      , pathFromRoot = pathFromRoot
+      , pathFromRoot = nextPathFromRoot
       , children = children
+      , controllers = []
       }
+
+updateModelTree : Trigger -> ModelTree -> ModelTree
+updateModelTree trigger completeModelTree =
+  case trigger of
+    Init jsonStr -> modelFromJson [] 0 << decodeJson <| jsonStr
+
+    ClickEl Nothing -> completeModelTree
+
+    ClickEl (Just path) -> addControllerToTree path completeModelTree
 
 
 {- HTML building functions -}
@@ -118,19 +144,74 @@ makeStyle modelRecord =
       , ("pathFromRoot", toString modelRecord.pathFromRoot)
       ]
 
+makeControllerStyle : Controller -> Attribute
+makeControllerStyle controller =
+  style
+    [ ("position", "absolute") 
+    , ("width", "100%")
+    , ("height", "100%")
+    , ("border", "2px solid orange")
+    ]
+
+makeControllerAttributes : Controller -> List Attribute
+makeControllerAttributes controller =
+  [ makeControllerStyle controller ]
+
 
 makeAttributes : ModelRecord -> List Attribute
 makeAttributes modelRecord =
  [ attribute "nodeId" <| toString modelRecord.nodeId
  , attribute "pathFromRoot" <| toString modelRecord.pathFromRoot
  , makeStyle modelRecord
+ , clickableAttribute (modelRecord.pathFromRoot)
  ]
 
+controllerToHtml : Controller -> Html
+controllerToHtml controller =
+  div (makeControllerAttributes controller) []
+
 treeToHtml : ModelTree -> Html
-treeToHtml (ModelTree modelRecord) =
-  div (makeAttributes modelRecord) (List.map treeToHtml modelRecord.children)
+treeToHtml modelTree =
+  case modelTree of
+    EmptyModel -> text "empty model :("
+
+    ModelTree modelRecord -> 
+      let
+        controllers = List.map controllerToHtml modelRecord.controllers
+        children = List.map treeToHtml modelRecord.children
+      in
+        controllers ++ children
+        |> div (makeAttributes modelRecord)
+
 
 
 {- View -}
 
-main = Signal.map (toElement 500 500 << treeToHtml << modelFromJson [] 0 << decodeJson) jsonMessage
+initModel trigger = updateModelTree trigger EmptyModel
+
+modelSig = foldp' updateModelTree initModel triggerSig
+
+viewSig = Signal.map (toElement 500 500 << treeToHtml) modelSig
+
+main = 
+  Signal.map2
+    above
+    (Signal.map2
+      above
+      (Signal.map showModel modelSig)
+      (Signal.map displaySig triggerSig))
+    viewSig
+
+
+{- Some debugging stuff -}
+
+displaySig val =
+  case val of
+    ClickEl el -> show el
+    Init json -> show json
+
+
+showModel model =
+  case model of
+    EmptyModel -> show "empty"
+    ModelTree mRecord -> show mRecord
