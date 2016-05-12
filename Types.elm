@@ -15,14 +15,14 @@ type alias ModelRecord =
   { dimensions : Dimensions
   , position : Position
   , children : List ModelTree
-  , nodeId : Int
+  --, nodeId : Int
   , pathFromRoot : List Int
   , controllers : List Controller
   }
 getModelRecord mTree = 
   case mTree of
     (ModelTree mRecord) -> mRecord
-    EmptyModel -> ModelRecord (0, 0) (0, 0) [] 0 [] []
+    EmptyModel -> ModelRecord (0, 0) (0, 0) [] [] []
 
 
 type alias Controller =

@@ -5,15 +5,11 @@ import List
 import Html exposing (Html, Attribute, node, div, text)
 import Html.Attributes exposing (style, attribute)
 import Html.Events exposing (onClick, onWithOptions)
---import Signal
---import Graphics.Element exposing (show, above)
 import Result exposing (Result)
---import Signal.Extra exposing (foldp')
 import Json.Decode exposing (succeed)
 import Html.App
 import Platform.Cmd as Cmd exposing (Cmd)
 import Platform.Sub as Sub exposing (Sub)
-
 
 import Decoder exposing (decodeJson)
 import Types exposing (..)
@@ -25,18 +21,6 @@ port jsonMessage : (String -> msg) -> Sub msg
 
 subscriptions model =
   jsonMessage Init
-
-
-{- Signals -}
-
---clickedElement : Signal.Mailbox (Maybe (List Int))
---clickedElement = Signal.mailbox Nothing
-
---triggerSig : Signal Trigger
---triggerSig = 
---  Signal.merge
---    (Signal.map Init jsonMessage)
---    (Signal.map ClickEl clickedElement.signal)
 
 
 onClickNoProp : msg -> Attribute msg
@@ -66,20 +50,19 @@ modifyDesc pathToDesc completeTree newSubTreeFunc =
 
   case pathToDesc of
     [] ->
-      EmptyModel
-
-    x :: [] ->
-      if x == (getModelRecord completeTree).nodeId
-      then newSubTreeFunc completeTree
-      else completeTree
+      newSubTreeFunc completeTree
 
     x :: xs ->
-      let
+      let 
+        recurseIfMatches subTree =
+          case (getModelRecord subTree).pathFromRoot of
+            [] -> subTree
+            y :: ys ->
+              if y == x
+              then modifyDesc xs subTree newSubTreeFunc
+              else subTree
         modelRecord = getModelRecord completeTree
-        newChildren = 
-          if x == modelRecord.nodeId
-          then List.map (\mTree -> modifyDesc xs mTree newSubTreeFunc) modelRecord.children
-          else (getModelRecord completeTree).children
+        newChildren = List.map recurseIfMatches modelRecord.children
       in
         ModelTree { modelRecord | children = newChildren }
 
@@ -93,25 +76,23 @@ addController mTree =
 
 addControllerToTree : List Int -> ModelTree -> ModelTree
 addControllerToTree pathToDesc completeTree =
-    modifyDesc pathToDesc completeTree addController
+    modifyDesc (List.reverse pathToDesc) completeTree addController
 
 {- Intermediate model represntation -}
 
-modelFromJson pathFromRoot nodeId (JsonTree jsonTree) =
+modelFromJson pathFromRoot (JsonTree jsonTree) =
   let
-    nextPathFromRoot = pathFromRoot ++ [nodeId]
     childrenNodeIds = listRange (List.length jsonTree.children)
     children =
       List.map2
-        (modelFromJson nextPathFromRoot) 
+        (\ nextId -> modelFromJson (nextId :: pathFromRoot))
         childrenNodeIds 
         jsonTree.children
   in
     ModelTree
       { dimensions = jsonTree.dimensions
       , position = jsonTree.position
-      , nodeId = nodeId
-      , pathFromRoot = nextPathFromRoot
+      , pathFromRoot = pathFromRoot
       , children = children
       , controllers = []
       }
@@ -120,7 +101,7 @@ updateModelTree : Msg -> ModelTree -> (ModelTree, Cmd Msg)
 updateModelTree msg completeModelTree =
   Debug.log ("msg = " ++ toString msg)
   (case msg of
-    Init jsonStr -> (modelFromJson [] 0 << decodeJson <| jsonStr, Cmd.none)
+    Init jsonStr -> (modelFromJson [] << decodeJson <| jsonStr, Cmd.none)
 
     ClickEl Nothing -> (completeModelTree, Cmd.none)
 
@@ -148,7 +129,6 @@ makeStyle modelRecord =
       , ("height", px h)
       , ("width", px w)
       , ("outline", "1px solid black")
-      , ("nodeId", toString modelRecord.nodeId)
       , ("pathFromRoot", toString modelRecord.pathFromRoot)
       ]
 
@@ -168,8 +148,7 @@ makeControllerAttributes controller =
 
 makeAttributes : ModelRecord -> List (Attribute Msg)
 makeAttributes modelRecord =
- [ attribute "nodeId" <| toString modelRecord.nodeId
- , attribute "pathFromRoot" <| toString modelRecord.pathFromRoot
+ [ attribute "pathFromRoot" <| toString modelRecord.pathFromRoot
  , makeStyle modelRecord
  , clickableAttribute (modelRecord.pathFromRoot)
  ]
@@ -192,20 +171,11 @@ treeToHtml modelTree =
         |> div (makeAttributes modelRecord)
 
 
-
 {- View -}
-
---initModel trigger = updateModelTree trigger EmptyModel
-
---modelSig = foldp' updateModelTree initModel triggerSig
-
---viewSig = Signal.map (toElement 500 500 << treeToHtml) modelSig
 
 init : {jsonStr : String} -> (ModelTree, Cmd Msg)
 init {jsonStr} =
   updateModelTree (Init jsonStr) EmptyModel
-
-
 
 program = 
   Html.App.programWithFlags
@@ -215,28 +185,4 @@ program =
     , view = treeToHtml
     }
 
-
 main = program
-
---main = 
---  Signal.map2
---    above
---    (Signal.map2
---      above
---      (Signal.map showModel modelSig)
---      (Signal.map displaySig triggerSig))
---    viewSig
-
-
-{- Some debugging stuff -}
-
---displaySig val =
---  case val of
---    ClickEl el -> show el
---    Init json -> show json
-
-
---showModel model =
---  case model of
---    EmptyModel -> show "empty"
---    ModelTree mRecord -> show mRecord
