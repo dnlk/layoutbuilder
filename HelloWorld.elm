@@ -40,9 +40,9 @@ listRange : Int -> List Int
 listRange = List.reverse << listRangeRev
 
 
-clickableAttribute : List Int -> Attribute Msg
-clickableAttribute pathFromRoot =
-  onClickNoProp <| ClickEl (Just pathFromRoot)
+clickableAttribute : List Int -> TreeCmd -> Attribute Msg
+clickableAttribute pathFromRoot cmd =
+  onClickNoProp <| ClickEl cmd (Just pathFromRoot)
 
 
 modifyDesc : List Int -> ModelTree -> (ModelTree -> ModelTree) -> ModelTree
@@ -78,6 +78,18 @@ addControllerToTree : List Int -> ModelTree -> ModelTree
 addControllerToTree pathToDesc completeTree =
     modifyDesc (List.reverse pathToDesc) completeTree addController
 
+
+deleteController : ModelTree -> ModelTree
+deleteController mTree =
+  case mTree of
+    ModelTree modelRecord ->
+      ModelTree { modelRecord | controllers = [] }
+    EmptyModel -> mTree
+
+deleteControllerFromTree : List Int -> ModelTree -> ModelTree
+deleteControllerFromTree pathToDesc completeTree =
+  modifyDesc (List.reverse pathToDesc) completeTree deleteController
+
 {- Intermediate model represntation -}
 
 modelFromJson pathFromRoot (JsonTree jsonTree) =
@@ -103,9 +115,14 @@ updateModelTree msg completeModelTree =
   (case msg of
     Init jsonStr -> (modelFromJson [] << decodeJson <| jsonStr, Cmd.none)
 
-    ClickEl Nothing -> (completeModelTree, Cmd.none)
+    ClickEl _ Nothing -> (completeModelTree, Cmd.none)
 
-    ClickEl (Just path) -> (addControllerToTree path completeModelTree, Cmd.none))
+    ClickEl (AddController Self) (Just path) -> (addControllerToTree path completeModelTree, Cmd.none)
+
+    ClickEl (DeleteController Self) (Just path) -> (deleteControllerFromTree path completeModelTree, Cmd.none)
+
+    ClickEl _ _ -> (completeModelTree, Cmd.none)
+  )
 
 
 {- HTML building functions -}
@@ -141,21 +158,22 @@ makeControllerStyle controller =
     , ("border", "2px solid orange")
     ]
 
-makeControllerAttributes : Controller -> List (Attribute Msg)
-makeControllerAttributes controller =
-  [ makeControllerStyle controller ]
+makeControllerAttributes : ModelRecord -> Controller -> List (Attribute Msg)
+makeControllerAttributes modelRecord controller =
+  [ makeControllerStyle controller 
+  , clickableAttribute modelRecord.pathFromRoot (DeleteController Self)]
 
 
 makeAttributes : ModelRecord -> List (Attribute Msg)
 makeAttributes modelRecord =
  [ attribute "pathFromRoot" <| toString modelRecord.pathFromRoot
  , makeStyle modelRecord
- , clickableAttribute (modelRecord.pathFromRoot)
+ , clickableAttribute (modelRecord.pathFromRoot) (AddController Self)
  ]
 
-controllerToHtml : Controller -> Html Msg
-controllerToHtml controller =
-  div (makeControllerAttributes controller) []
+controllerToHtml : ModelRecord -> Controller -> Html Msg
+controllerToHtml modelRecord controller =
+  div (makeControllerAttributes modelRecord controller) []
 
 treeToHtml : ModelTree -> Html Msg
 treeToHtml modelTree =
@@ -164,7 +182,7 @@ treeToHtml modelTree =
 
     ModelTree modelRecord -> 
       let
-        controllers = List.map controllerToHtml modelRecord.controllers
+        controllers = List.map (controllerToHtml modelRecord) modelRecord.controllers
         children = List.map treeToHtml modelRecord.children
       in
         controllers ++ children

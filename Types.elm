@@ -15,7 +15,6 @@ type alias ModelRecord =
   { dimensions : Dimensions
   , position : Position
   , children : List ModelTree
-  --, nodeId : Int
   , pathFromRoot : List Int
   , controllers : List Controller
   }
@@ -30,9 +29,22 @@ type alias Controller =
 
 type alias JsonStr = String
 
+
+type Relation
+  = Self
+  | Parent
+  | Child Int
+
+type TreeCmd 
+  = Delete Relation
+  | AddController Relation
+  | DeleteController Relation
+
+
 type Msg
   = Init JsonStr
-  | ClickEl (Maybe (List Int))
+  | ClickEl TreeCmd (Maybe (List Int))
+  --| ClickEl (Maybe (List Int))
 
 type alias Context =
   { clickedElement : Maybe (List Int) }
