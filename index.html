@@ -19,9 +19,9 @@
           {position: [210, 20], dimensions: [50, 100], children: []}
         ]
       };
-  
-      var myApp = Elm.embed(Elm.HelloWorld, div, {jsonMessage: JSON.stringify(initial_value)});
-      // myApp.ports.jsonMessage.send(JSON.stringify(initial_value));
+      
+      jsonStr = JSON.stringify(initial_value);
+      var myApp = Elm.HelloWorld.embed(div, {jsonStr: jsonStr});
     </script>
   </body>
 

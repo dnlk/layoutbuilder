@@ -1,4 +1,4 @@
-module Types where
+module Types exposing (..)
 
 type alias Dimensions = (Int, Int)
 type alias Position = (Int, Int)
@@ -30,7 +30,7 @@ type alias Controller =
 
 type alias JsonStr = String
 
-type Trigger
+type Msg
   = Init JsonStr
   | ClickEl (Maybe (List Int))
 

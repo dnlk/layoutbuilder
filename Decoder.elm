@@ -1,13 +1,20 @@
-module Decoder (decodeJson) where 
+module Decoder exposing (decodeJson) 
 
 import Json.Decode exposing (..)
-import Json.Decode.Extra exposing (lazy)
+--import Json.Decode.Extra exposing (lazy)
 
 import Types exposing (..)
 
 
 pointDecoder : Decoder (Int, Int)
 pointDecoder = tuple2 (,) int int
+
+
+lazy : (() -> Decoder a) -> Decoder a
+lazy thunk =
+  Json.Decode.customDecoder value
+      (\js -> Json.Decode.decodeValue (thunk ()) js)
+      
 
 decoder =
   map JsonTree <|

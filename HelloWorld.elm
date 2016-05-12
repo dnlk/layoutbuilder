@@ -1,15 +1,18 @@
-module HelloWorld where
+port module HelloWorld exposing (..)
 
 import Debug
 import List
-import Html exposing (Html, Attribute, node, div, toElement, text)
+import Html exposing (Html, Attribute, node, div, text)
 import Html.Attributes exposing (style, attribute)
 import Html.Events exposing (onClick, onWithOptions)
-import Signal
-import Graphics.Element exposing (show, above)
+--import Signal
+--import Graphics.Element exposing (show, above)
 import Result exposing (Result)
-import Signal.Extra exposing (foldp')
-import Json.Decode exposing (value)
+--import Signal.Extra exposing (foldp')
+import Json.Decode exposing (succeed)
+import Html.App
+import Platform.Cmd as Cmd exposing (Cmd)
+import Platform.Sub as Sub exposing (Sub)
 
 
 import Decoder exposing (decodeJson)
@@ -18,23 +21,27 @@ import Types exposing (..)
 
 {- Ports -}
 
-port jsonMessage : Signal (String)
+port jsonMessage : (String -> msg) -> Sub msg
+
+subscriptions model =
+  jsonMessage Init
+
 
 {- Signals -}
 
-clickedElement : Signal.Mailbox (Maybe (List Int))
-clickedElement = Signal.mailbox Nothing
+--clickedElement : Signal.Mailbox (Maybe (List Int))
+--clickedElement = Signal.mailbox Nothing
 
-triggerSig : Signal Trigger
-triggerSig = 
-  Signal.merge
-    (Signal.map Init jsonMessage)
-    (Signal.map ClickEl clickedElement.signal)
+--triggerSig : Signal Trigger
+--triggerSig = 
+--  Signal.merge
+--    (Signal.map Init jsonMessage)
+--    (Signal.map ClickEl clickedElement.signal)
 
 
-onClickNoProp : Signal.Address a -> a -> Attribute   
-onClickNoProp address message =
-    onWithOptions "click" { stopPropagation = True, preventDefault = False } value (\_ -> Signal.message address message)
+onClickNoProp : msg -> Attribute msg
+onClickNoProp message =
+    onWithOptions "click" { stopPropagation = True, preventDefault = False } (succeed message)
 
 
 {- General Utils -}
@@ -49,9 +56,9 @@ listRange : Int -> List Int
 listRange = List.reverse << listRangeRev
 
 
-clickableAttribute : List Int -> Attribute
+clickableAttribute : List Int -> Attribute Msg
 clickableAttribute pathFromRoot =
-  onClickNoProp clickedElement.address (Just pathFromRoot)
+  onClickNoProp <| ClickEl (Just pathFromRoot)
 
 
 modifyDesc : List Int -> ModelTree -> (ModelTree -> ModelTree) -> ModelTree
@@ -109,14 +116,15 @@ modelFromJson pathFromRoot nodeId (JsonTree jsonTree) =
       , controllers = []
       }
 
-updateModelTree : Trigger -> ModelTree -> ModelTree
-updateModelTree trigger completeModelTree =
-  case trigger of
-    Init jsonStr -> modelFromJson [] 0 << decodeJson <| jsonStr
+updateModelTree : Msg -> ModelTree -> (ModelTree, Cmd Msg)
+updateModelTree msg completeModelTree =
+  Debug.log ("msg = " ++ toString msg)
+  (case msg of
+    Init jsonStr -> (modelFromJson [] 0 << decodeJson <| jsonStr, Cmd.none)
 
-    ClickEl Nothing -> completeModelTree
+    ClickEl Nothing -> (completeModelTree, Cmd.none)
 
-    ClickEl (Just path) -> addControllerToTree path completeModelTree
+    ClickEl (Just path) -> (addControllerToTree path completeModelTree, Cmd.none))
 
 
 {- HTML building functions -}
@@ -125,7 +133,7 @@ px : Int -> String
 px x =
     (toString x) ++ "px"
 
-makeStyle : ModelRecord -> Attribute
+makeStyle : ModelRecord -> Attribute Msg
 makeStyle modelRecord =
   let
     x = fst modelRecord.position
@@ -144,7 +152,7 @@ makeStyle modelRecord =
       , ("pathFromRoot", toString modelRecord.pathFromRoot)
       ]
 
-makeControllerStyle : Controller -> Attribute
+makeControllerStyle : Controller -> Attribute Msg
 makeControllerStyle controller =
   style
     [ ("position", "absolute") 
@@ -153,12 +161,12 @@ makeControllerStyle controller =
     , ("border", "2px solid orange")
     ]
 
-makeControllerAttributes : Controller -> List Attribute
+makeControllerAttributes : Controller -> List (Attribute Msg)
 makeControllerAttributes controller =
   [ makeControllerStyle controller ]
 
 
-makeAttributes : ModelRecord -> List Attribute
+makeAttributes : ModelRecord -> List (Attribute Msg)
 makeAttributes modelRecord =
  [ attribute "nodeId" <| toString modelRecord.nodeId
  , attribute "pathFromRoot" <| toString modelRecord.pathFromRoot
@@ -166,11 +174,11 @@ makeAttributes modelRecord =
  , clickableAttribute (modelRecord.pathFromRoot)
  ]
 
-controllerToHtml : Controller -> Html
+controllerToHtml : Controller -> Html Msg
 controllerToHtml controller =
   div (makeControllerAttributes controller) []
 
-treeToHtml : ModelTree -> Html
+treeToHtml : ModelTree -> Html Msg
 treeToHtml modelTree =
   case modelTree of
     EmptyModel -> text "empty model :("
@@ -187,31 +195,48 @@ treeToHtml modelTree =
 
 {- View -}
 
-initModel trigger = updateModelTree trigger EmptyModel
+--initModel trigger = updateModelTree trigger EmptyModel
 
-modelSig = foldp' updateModelTree initModel triggerSig
+--modelSig = foldp' updateModelTree initModel triggerSig
 
-viewSig = Signal.map (toElement 500 500 << treeToHtml) modelSig
+--viewSig = Signal.map (toElement 500 500 << treeToHtml) modelSig
 
-main = 
-  Signal.map2
-    above
-    (Signal.map2
-      above
-      (Signal.map showModel modelSig)
-      (Signal.map displaySig triggerSig))
-    viewSig
+init : {jsonStr : String} -> (ModelTree, Cmd Msg)
+init {jsonStr} =
+  updateModelTree (Init jsonStr) EmptyModel
+
+
+
+program = 
+  Html.App.programWithFlags
+    { init = init
+    , update = updateModelTree
+    , subscriptions = subscriptions
+    , view = treeToHtml
+    }
+
+
+main = program
+
+--main = 
+--  Signal.map2
+--    above
+--    (Signal.map2
+--      above
+--      (Signal.map showModel modelSig)
+--      (Signal.map displaySig triggerSig))
+--    viewSig
 
 
 {- Some debugging stuff -}
 
-displaySig val =
-  case val of
-    ClickEl el -> show el
-    Init json -> show json
+--displaySig val =
+--  case val of
+--    ClickEl el -> show el
+--    Init json -> show json
 
 
-showModel model =
-  case model of
-    EmptyModel -> show "empty"
-    ModelTree mRecord -> show mRecord
+--showModel model =
+--  case model of
+--    EmptyModel -> show "empty"
+--    ModelTree mRecord -> show mRecord
