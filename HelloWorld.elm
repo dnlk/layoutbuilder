@@ -3,13 +3,15 @@ port module HelloWorld exposing (..)
 import Debug
 import List
 import Html exposing (Html, Attribute, node, div, text)
-import Html.Attributes exposing (style, attribute)
+import Html.Attributes exposing (style, attribute, id)
 import Html.Events exposing (onClick, onWithOptions)
 import Result exposing (Result)
 import Json.Decode exposing (succeed)
+import Json.Decode as Decode exposing (Decoder)
 import Html.App
 import Platform.Cmd as Cmd exposing (Cmd)
 import Platform.Sub as Sub exposing (Sub)
+import Mouse
 
 import Decoder exposing (decodeJson)
 import Types exposing (..)
@@ -20,13 +22,29 @@ import Types exposing (..)
 port jsonMessage : (String -> msg) -> Sub msg
 
 subscriptions model =
-  jsonMessage Init
+  Sub.batch
+    [ jsonMessage Init
+    , Mouse.moves MouseMove
+    ]
+
+{- Custom Html Event Handlers -}
+
+onClickNoProp : Decoder msg -> Attribute msg
+onClickNoProp decoder =
+  onWithOptions 
+    "click" 
+    { stopPropagation = True, preventDefault = False } 
+    decoder
 
 
-onClickNoProp : msg -> Attribute msg
-onClickNoProp message =
-    onWithOptions "click" { stopPropagation = True, preventDefault = False } (succeed message)
+clickableAttribute : List Int -> TreeCmd -> Attribute Msg
+clickableAttribute pathFromRoot cmd =
+  onClickNoProp << succeed <| ClickEl cmd (Just pathFromRoot)
 
+clickableAttributeCorner : Corner -> PathFromRoot -> Position -> Dimensions -> Attribute Msg
+clickableAttributeCorner corner pathFromRoot initialPos initialDims =
+  onClickNoProp 
+    (Decode.map (\p -> ControllerBoxClick corner p pathFromRoot initialPos initialDims) Mouse.position)
 
 {- General Utils -}
 
@@ -39,11 +57,7 @@ listRangeRev x =
 listRange : Int -> List Int
 listRange = List.reverse << listRangeRev
 
-
-clickableAttribute : List Int -> TreeCmd -> Attribute Msg
-clickableAttribute pathFromRoot cmd =
-  onClickNoProp <| ClickEl cmd (Just pathFromRoot)
-
+{- Tree Modifying Functions -}
 
 modifyDesc : List Int -> ModelTree -> (ModelTree -> ModelTree) -> ModelTree
 modifyDesc pathToDesc completeTree newSubTreeFunc =
@@ -71,7 +85,7 @@ addController : ModelTree -> ModelTree
 addController mTree =
   case mTree of
     (ModelTree modelRecord) ->
-      ModelTree { modelRecord | controllers = [{}] }
+      ModelTree { modelRecord | controllers = [{clickedCorner = Nothing}] }
     EmptyModel -> mTree
 
 addControllerToTree : List Int -> ModelTree -> ModelTree
@@ -89,6 +103,77 @@ deleteController mTree =
 deleteControllerFromTree : List Int -> ModelTree -> ModelTree
 deleteControllerFromTree pathToDesc completeTree =
   modifyDesc (List.reverse pathToDesc) completeTree deleteController
+
+
+getController : List Controller -> Maybe Controller
+getController cs =
+  case cs of
+    [] -> Nothing
+    x :: xs -> Just x
+
+toggleControllerResizeClick : Corner -> List Int -> PositionRec -> Position -> Dimensions -> ModelTree -> ModelTree
+toggleControllerResizeClick corner pathToDesc p pos dim mTree =
+  let
+    toggleClick corner mTree =
+      case mTree of
+
+        EmptyModel -> EmptyModel
+
+        ModelTree mRecord ->
+          case getController mRecord.controllers of
+            Nothing -> ModelTree mRecord
+
+            Just controller -> 
+              case controller.clickedCorner of
+                Nothing -> ModelTree { mRecord | controllers = [{clickedCorner = Just {corner = corner, positionClicked = p, initialPos = pos, initialDim = dim}}]}
+                Just _ -> ModelTree { mRecord | controllers = [{clickedCorner = Nothing}]}
+
+  in
+    modifyDesc (List.reverse pathToDesc) mTree (toggleClick corner)
+
+
+getClickedCorner : ModelRecord -> Maybe ClickedCorner
+getClickedCorner mRecord =
+  case mRecord.controllers of
+    [] -> Nothing
+    c :: _ -> c.clickedCorner
+
+
+updateDimensions : ClickedCorner -> PositionRec -> ModelRecord -> ModelRecord
+updateDimensions clickedCorner pMouse mRecord =
+  let
+    corner = clickedCorner.corner
+    pClicked = clickedCorner.positionClicked
+    dx = pMouse.x - pClicked.x
+    dy = pMouse.y - pClicked.y
+    posX = fst clickedCorner.initialPos
+    posY = snd clickedCorner.initialPos
+    dimX = fst clickedCorner.initialDim
+    dimY = snd clickedCorner.initialDim
+
+  in
+    case corner of
+      TopRight -> { mRecord | dimensions = (dimX + dx, dimY - dy), position = (posX, posY + dy) }
+      BottomRight -> { mRecord | dimensions = (dimX + dx, dimY + dy), position = (posX, posY) }
+      BottomLeft -> { mRecord | dimensions = (dimX - dx, dimY + dy), position = (posX + dx, posY)}
+      TopLeft -> { mRecord | dimensions = (dimX - dx, dimY - dy), position = (posX + dx, posY + dy)}
+
+
+
+resizeClicked : PositionRec -> ModelTree -> ModelTree
+resizeClicked pMouse mTree =
+  case mTree of
+
+    EmptyModel -> EmptyModel
+
+    ModelTree mRecord ->
+
+      case getClickedCorner mRecord of
+
+        Nothing -> ModelTree { mRecord | children = (List.map (resizeClicked pMouse) mRecord.children)}
+
+        Just clickedCorner -> ModelTree <| updateDimensions clickedCorner pMouse mRecord
+
 
 {- Intermediate model represntation -}
 
@@ -109,6 +194,8 @@ modelFromJson pathFromRoot (JsonTree jsonTree) =
       , controllers = []
       }
 
+{- Update handler -}
+
 updateModelTree : Msg -> ModelTree -> (ModelTree, Cmd Msg)
 updateModelTree msg completeModelTree =
   Debug.log ("msg = " ++ toString msg)
@@ -122,6 +209,12 @@ updateModelTree msg completeModelTree =
     ClickEl (DeleteController Self) (Just path) -> (deleteControllerFromTree path completeModelTree, Cmd.none)
 
     ClickEl _ _ -> (completeModelTree, Cmd.none)
+
+    ControllerBoxClick corner p (Just path) pos dim -> (toggleControllerResizeClick corner path p pos dim completeModelTree, Cmd.none)
+
+    MouseMove p -> (resizeClicked p completeModelTree, Cmd.none)
+
+    _ -> (completeModelTree, Cmd.none)
   )
 
 
@@ -171,9 +264,44 @@ makeAttributes modelRecord =
  , clickableAttribute (modelRecord.pathFromRoot) (AddController Self)
  ]
 
+
+resizeControllerStyle : Corner -> Dimensions -> Attribute Msg
+resizeControllerStyle corner (x, y) =
+  let
+    (hPos, vPos) = case corner of
+      TopRight -> (("top", px 0), ("right", px 0))
+      BottomRight -> (("bottom", px 0), ("right", px 0))
+      BottomLeft -> (("bottom", px 0), ("left", px 0))
+      TopLeft -> (("top", px 0), ("left", px 0))
+  in
+    style
+      [ ("position", "absolute")
+      , hPos
+      , vPos
+      , ("border", "1px solid green")
+      , ("height", px y)
+      , ("width", px x)
+      ]
+
+resizeControllerAttributes : Corner -> Dimensions -> PathFromRoot -> ModelRecord -> List (Attribute Msg)
+resizeControllerAttributes corner dimensions pathFromRoot mRecord =
+  [ resizeControllerStyle corner dimensions
+  , clickableAttributeCorner corner pathFromRoot mRecord.position mRecord.dimensions
+  , id (toString corner)
+  ]
+
+resizeControllerHtml : Corner -> Dimensions -> PathFromRoot -> ModelRecord -> Html Msg
+resizeControllerHtml corner dimensions pathFromRoot mRecord =
+  div (resizeControllerAttributes corner dimensions pathFromRoot mRecord) []
+
+
 controllerToHtml : ModelRecord -> Controller -> Html Msg
 controllerToHtml modelRecord controller =
-  div (makeControllerAttributes modelRecord controller) []
+  div
+    (makeControllerAttributes modelRecord controller)
+    (List.map 
+      (\c -> resizeControllerHtml c (10, 10) (Just modelRecord.pathFromRoot) modelRecord) 
+      [TopRight, BottomRight, BottomLeft, TopLeft])
 
 treeToHtml : ModelTree -> Html Msg
 treeToHtml modelTree =
