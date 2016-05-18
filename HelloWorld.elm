@@ -156,34 +156,56 @@ getClickedCorner mRecord =
 
 resizeClicked : PositionRec -> ModelTree -> ModelTree
 resizeClicked pMouse (ModelTree mRecord) =
-    case getClickedCorner mRecord of
-      Nothing -> 
-        ModelTree 
-          { mRecord 
-          | children = (List.map (resizeClicked pMouse) mRecord.children)}
-      Just clickedCorner -> 
-        ModelTree <| updateDimensions clickedCorner pMouse mRecord
+  case getClickedCorner mRecord of
+    Nothing -> 
+      ModelTree 
+        { mRecord 
+        | children = (List.map (resizeClicked pMouse) mRecord.children)}
+    Just clickedCorner -> 
+      ModelTree <| updateDimensions clickedCorner pMouse mRecord
 
 isUnClicked : ModelTree -> Bool
 isUnClicked (ModelTree mRecord) =
-    case mRecord.controllers of 
-      [] -> True
-      _ -> False
+  case mRecord.controllers of 
+    [] -> True
+    _ -> False
 
 deleteClickedNode : ModelTree -> ModelTree
 deleteClickedNode (ModelTree mRecord) =
+  let
+    nonClickedChildren = List.filter isUnClicked mRecord.children
+    newChildren = List.map deleteClickedNode nonClickedChildren
+  in
+    ModelTree { mRecord | children = newChildren}
+
+addToClickedNode : ModelTree -> ModelTree
+addToClickedNode (ModelTree mRecord) =
+  if not << isUnClicked <| (ModelTree mRecord)
+  then
     let
-      nonClickedChildren = List.filter isUnClicked mRecord.children
-      newChildren = List.map deleteClickedNode nonClickedChildren
+      newPathFromRoot = List.length mRecord.children :: mRecord.pathFromRoot
+      newChild =
+        ModelTree
+          { dimensions = (80, 80)
+          , position = (20, 20)
+          , children = []
+          , pathFromRoot = newPathFromRoot
+          , controllers = []
+          }
+      addedChildren = List.map addToClickedNode mRecord.children
+      newChildren = newChild :: addedChildren
     in
-      ModelTree { mRecord | children = newChildren}
+      ModelTree { mRecord | children = newChildren }
+  else
+    ModelTree mRecord
 
 
 handleKeyPress : Int -> ModelTree -> ModelTree
 handleKeyPress x mTree=
-  if x == 100
-  then deleteClickedNode mTree
-  else mTree
+  case x of
+    100 -> deleteClickedNode mTree
+    110 -> addToClickedNode mTree
+    _ -> mTree
 
 
 {- Intermediate model represntation -}

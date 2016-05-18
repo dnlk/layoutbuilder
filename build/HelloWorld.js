@@ -8486,16 +8486,56 @@ var _user$project$HelloWorld$deleteClickedNode = function (_p16) {
 			_p18,
 			{children: newChildren}));
 };
+var _user$project$HelloWorld$addToClickedNode = function (_p19) {
+	var _p20 = _p19;
+	var _p22 = _p20._0;
+	if (function (_p21) {
+		return _elm_lang$core$Basics$not(
+			_user$project$HelloWorld$isUnClicked(_p21));
+	}(
+		_user$project$Types$ModelTree(_p22))) {
+		var addedChildren = A2(_elm_lang$core$List$map, _user$project$HelloWorld$addToClickedNode, _p22.children);
+		var newPathFromRoot = A2(
+			_elm_lang$core$List_ops['::'],
+			_elm_lang$core$List$length(_p22.children),
+			_p22.pathFromRoot);
+		var newChild = _user$project$Types$ModelTree(
+			{
+				dimensions: {ctor: '_Tuple2', _0: 80, _1: 80},
+				position: {ctor: '_Tuple2', _0: 20, _1: 20},
+				children: _elm_lang$core$Native_List.fromArray(
+					[]),
+				pathFromRoot: newPathFromRoot,
+				controllers: _elm_lang$core$Native_List.fromArray(
+					[])
+			});
+		var newChildren = A2(_elm_lang$core$List_ops['::'], newChild, addedChildren);
+		return _user$project$Types$ModelTree(
+			_elm_lang$core$Native_Utils.update(
+				_p22,
+				{children: newChildren}));
+	} else {
+		return _user$project$Types$ModelTree(_p22);
+	}
+};
 var _user$project$HelloWorld$handleKeyPress = F2(
 	function (x, mTree) {
-		return _elm_lang$core$Native_Utils.eq(x, 100) ? _user$project$HelloWorld$deleteClickedNode(mTree) : mTree;
+		var _p23 = x;
+		switch (_p23) {
+			case 100:
+				return _user$project$HelloWorld$deleteClickedNode(mTree);
+			case 110:
+				return _user$project$HelloWorld$addToClickedNode(mTree);
+			default:
+				return mTree;
+		}
 	});
 var _user$project$HelloWorld$getClickedCorner = function (mRecord) {
-	var _p19 = mRecord.controllers;
-	if (_p19.ctor === '[]') {
+	var _p24 = mRecord.controllers;
+	if (_p24.ctor === '[]') {
 		return _elm_lang$core$Maybe$Nothing;
 	} else {
-		return _p19._0.clickedCorner;
+		return _p24._0.clickedCorner;
 	}
 };
 var _user$project$HelloWorld$updateDimensions = F3(
@@ -8508,8 +8548,8 @@ var _user$project$HelloWorld$updateDimensions = F3(
 		var dx = pMouse.x - pClicked.x;
 		var dy = pMouse.y - pClicked.y;
 		var corner = clickedCorner.corner;
-		var _p20 = corner;
-		switch (_p20.ctor) {
+		var _p25 = corner;
+		switch (_p25.ctor) {
 			case 'TopRight':
 				return _elm_lang$core$Native_Utils.update(
 					mRecord,
@@ -8548,48 +8588,48 @@ var _user$project$HelloWorld$updateDimensions = F3(
 		}
 	});
 var _user$project$HelloWorld$resizeClicked = F2(
-	function (pMouse, _p21) {
-		var _p22 = _p21;
-		var _p24 = _p22._0;
-		var _p23 = _user$project$HelloWorld$getClickedCorner(_p24);
-		if (_p23.ctor === 'Nothing') {
+	function (pMouse, _p26) {
+		var _p27 = _p26;
+		var _p29 = _p27._0;
+		var _p28 = _user$project$HelloWorld$getClickedCorner(_p29);
+		if (_p28.ctor === 'Nothing') {
 			return _user$project$Types$ModelTree(
 				_elm_lang$core$Native_Utils.update(
-					_p24,
+					_p29,
 					{
 						children: A2(
 							_elm_lang$core$List$map,
 							_user$project$HelloWorld$resizeClicked(pMouse),
-							_p24.children)
+							_p29.children)
 					}));
 		} else {
 			return _user$project$Types$ModelTree(
-				A3(_user$project$HelloWorld$updateDimensions, _p23._0, pMouse, _p24));
+				A3(_user$project$HelloWorld$updateDimensions, _p28._0, pMouse, _p29));
 		}
 	});
 var _user$project$HelloWorld$getController = function (cs) {
-	var _p25 = cs;
-	if (_p25.ctor === '[]') {
+	var _p30 = cs;
+	if (_p30.ctor === '[]') {
 		return _elm_lang$core$Maybe$Nothing;
 	} else {
-		return _elm_lang$core$Maybe$Just(_p25._0);
+		return _elm_lang$core$Maybe$Just(_p30._0);
 	}
 };
-var _user$project$HelloWorld$deleteController = function (_p26) {
-	var _p27 = _p26;
+var _user$project$HelloWorld$deleteController = function (_p31) {
+	var _p32 = _p31;
 	return _user$project$Types$ModelTree(
 		_elm_lang$core$Native_Utils.update(
-			_p27._0,
+			_p32._0,
 			{
 				controllers: _elm_lang$core$Native_List.fromArray(
 					[])
 			}));
 };
-var _user$project$HelloWorld$addController = function (_p28) {
-	var _p29 = _p28;
+var _user$project$HelloWorld$addController = function (_p33) {
+	var _p34 = _p33;
 	return _user$project$Types$ModelTree(
 		_elm_lang$core$Native_Utils.update(
-			_p29._0,
+			_p34._0,
 			{
 				controllers: _elm_lang$core$Native_List.fromArray(
 					[
@@ -8599,17 +8639,17 @@ var _user$project$HelloWorld$addController = function (_p28) {
 };
 var _user$project$HelloWorld$modifyDesc = F3(
 	function (pathToDesc, completeTree, newSubTreeFunc) {
-		var _p30 = pathToDesc;
-		if (_p30.ctor === '[]') {
+		var _p35 = pathToDesc;
+		if (_p35.ctor === '[]') {
 			return newSubTreeFunc(completeTree);
 		} else {
 			var modelRecord = _user$project$Types$getModelRecord(completeTree);
 			var recurseIfMatches = function (subTree) {
-				var _p31 = _user$project$Types$getModelRecord(subTree).pathFromRoot;
-				if (_p31.ctor === '[]') {
+				var _p36 = _user$project$Types$getModelRecord(subTree).pathFromRoot;
+				if (_p36.ctor === '[]') {
 					return subTree;
 				} else {
-					return _elm_lang$core$Native_Utils.eq(_p31._0, _p30._0) ? A3(_user$project$HelloWorld$modifyDesc, _p30._1, subTree, newSubTreeFunc) : subTree;
+					return _elm_lang$core$Native_Utils.eq(_p36._0, _p35._0) ? A3(_user$project$HelloWorld$modifyDesc, _p35._1, subTree, newSubTreeFunc) : subTree;
 				}
 			};
 			var newChildren = A2(_elm_lang$core$List$map, recurseIfMatches, modelRecord.children);
@@ -8638,18 +8678,18 @@ var _user$project$HelloWorld$deleteControllerFromTree = F2(
 var _user$project$HelloWorld$toggleControllerResizeClick = F6(
 	function (corner, pathToDesc, p, pos, dim, mTree) {
 		var toggleClick = F2(
-			function (corner, _p32) {
-				var _p33 = _p32;
-				var _p36 = _p33._0;
-				var _p34 = _user$project$HelloWorld$getController(_p36.controllers);
-				if (_p34.ctor === 'Nothing') {
-					return _user$project$Types$ModelTree(_p36);
+			function (corner, _p37) {
+				var _p38 = _p37;
+				var _p41 = _p38._0;
+				var _p39 = _user$project$HelloWorld$getController(_p41.controllers);
+				if (_p39.ctor === 'Nothing') {
+					return _user$project$Types$ModelTree(_p41);
 				} else {
-					var _p35 = _p34._0.clickedCorner;
-					if (_p35.ctor === 'Nothing') {
+					var _p40 = _p39._0.clickedCorner;
+					if (_p40.ctor === 'Nothing') {
 						return _user$project$Types$ModelTree(
 							_elm_lang$core$Native_Utils.update(
-								_p36,
+								_p41,
 								{
 									controllers: _elm_lang$core$Native_List.fromArray(
 										[
@@ -8662,7 +8702,7 @@ var _user$project$HelloWorld$toggleControllerResizeClick = F6(
 					} else {
 						return _user$project$Types$ModelTree(
 							_elm_lang$core$Native_Utils.update(
-								_p36,
+								_p41,
 								{
 									controllers: _elm_lang$core$Native_List.fromArray(
 										[
@@ -8687,75 +8727,75 @@ var _user$project$HelloWorld$updateModelTree = F2(
 				'msg = ',
 				_elm_lang$core$Basics$toString(msg)),
 			function () {
-				var _p37 = msg;
-				_v20_7:
+				var _p42 = msg;
+				_v22_7:
 				do {
-					switch (_p37.ctor) {
+					switch (_p42.ctor) {
 						case 'Init':
 							return {
 								ctor: '_Tuple2',
-								_0: function (_p38) {
+								_0: function (_p43) {
 									return A2(
 										_user$project$HelloWorld$modelFromJson,
 										_elm_lang$core$Native_List.fromArray(
 											[]),
-										_user$project$Decoder$decodeJson(_p38));
-								}(_p37._0),
+										_user$project$Decoder$decodeJson(_p43));
+								}(_p42._0),
 								_1: _elm_lang$core$Platform_Cmd$none
 							};
 						case 'ClickEl':
-							if (_p37._1.ctor === 'Nothing') {
+							if (_p42._1.ctor === 'Nothing') {
 								return {ctor: '_Tuple2', _0: completeModelTree, _1: _elm_lang$core$Platform_Cmd$none};
 							} else {
-								switch (_p37._0.ctor) {
+								switch (_p42._0.ctor) {
 									case 'AddController':
-										if (_p37._0._0.ctor === 'Self') {
+										if (_p42._0._0.ctor === 'Self') {
 											return {
 												ctor: '_Tuple2',
-												_0: A2(_user$project$HelloWorld$addControllerToTree, _p37._1._0, completeModelTree),
+												_0: A2(_user$project$HelloWorld$addControllerToTree, _p42._1._0, completeModelTree),
 												_1: _elm_lang$core$Platform_Cmd$none
 											};
 										} else {
-											break _v20_7;
+											break _v22_7;
 										}
 									case 'DeleteController':
-										if (_p37._0._0.ctor === 'Self') {
+										if (_p42._0._0.ctor === 'Self') {
 											return {
 												ctor: '_Tuple2',
-												_0: A2(_user$project$HelloWorld$deleteControllerFromTree, _p37._1._0, completeModelTree),
+												_0: A2(_user$project$HelloWorld$deleteControllerFromTree, _p42._1._0, completeModelTree),
 												_1: _elm_lang$core$Platform_Cmd$none
 											};
 										} else {
-											break _v20_7;
+											break _v22_7;
 										}
 									default:
-										break _v20_7;
+										break _v22_7;
 								}
 							}
 						case 'ControllerBoxClick':
-							if (_p37._2.ctor === 'Just') {
+							if (_p42._2.ctor === 'Just') {
 								return {
 									ctor: '_Tuple2',
-									_0: A6(_user$project$HelloWorld$toggleControllerResizeClick, _p37._0, _p37._2._0, _p37._1, _p37._3, _p37._4, completeModelTree),
+									_0: A6(_user$project$HelloWorld$toggleControllerResizeClick, _p42._0, _p42._2._0, _p42._1, _p42._3, _p42._4, completeModelTree),
 									_1: _elm_lang$core$Platform_Cmd$none
 								};
 							} else {
-								break _v20_7;
+								break _v22_7;
 							}
 						case 'KeyPress':
 							return {
 								ctor: '_Tuple2',
-								_0: A2(_user$project$HelloWorld$handleKeyPress, _p37._0, completeModelTree),
+								_0: A2(_user$project$HelloWorld$handleKeyPress, _p42._0, completeModelTree),
 								_1: _elm_lang$core$Platform_Cmd$none
 							};
 						case 'MouseMove':
 							return {
 								ctor: '_Tuple2',
-								_0: A2(_user$project$HelloWorld$resizeClicked, _p37._0, completeModelTree),
+								_0: A2(_user$project$HelloWorld$resizeClicked, _p42._0, completeModelTree),
 								_1: _elm_lang$core$Platform_Cmd$none
 							};
 						default:
-							break _v20_7;
+							break _v22_7;
 					}
 				} while(false);
 				return {ctor: '_Tuple2', _0: completeModelTree, _1: _elm_lang$core$Platform_Cmd$none};
