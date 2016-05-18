@@ -2,7 +2,7 @@ module Types exposing (..)
 
 type alias Dimensions = (Int, Int)
 type alias Position = (Int, Int)
-type alias PathFromRoot = (Maybe (List Int))
+type alias PathFromRoot = List Int
 type alias PositionRec = {x : Int, y : Int}
 
 type Corner 
@@ -19,18 +19,15 @@ type alias JsonRecord =
   , children : List JsonTree
   }
 
-type ModelTree = ModelTree ModelRecord | EmptyModel
+type ModelTree = ModelTree ModelRecord
 type alias ModelRecord =
   { dimensions : Dimensions
   , position : Position
   , children : List ModelTree
-  , pathFromRoot : List Int
+  , pathFromRoot : PathFromRoot
   , controllers : List Controller
   }
-getModelRecord mTree = 
-  case mTree of
-    (ModelTree mRecord) -> mRecord
-    EmptyModel -> ModelRecord (0, 0) (0, 0) [] [] []
+getModelRecord (ModelTree mRecord) = mRecord
 
 
 type alias ClickedCorner =
@@ -59,15 +56,15 @@ type TreeCmd
 
 type Msg
   = Init JsonStr
-  | ClickEl TreeCmd PathFromRoot
-  | ControllerBoxClick Corner {x : Int, y : Int } PathFromRoot Position Dimensions
-  | MoverBoxClick PositionRec PathFromRoot Position
+  | ClickEl TreeCmd (Maybe PathFromRoot)
+  | ControllerBoxClick Corner PositionRec (Maybe PathFromRoot) Position Dimensions
+  | MoverBoxClick PositionRec (Maybe PathFromRoot) Position
   | MouseMove PositionRec
   | KeyPress Int
-  --| ControllerBoxDrag Corner Position PathFromRoot
-
+  --| ControllerBoxDrag Corner Position (Maybe PathFromRoot)
+  
   --| ClickEl (Maybe (List Int))
 
 type alias Context =
-  { clickedElement : PathFromRoot }
+  { clickedElement : Maybe PathFromRoot }
 

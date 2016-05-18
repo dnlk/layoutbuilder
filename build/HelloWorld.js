@@ -8034,6 +8034,10 @@ var _elm_lang$mouse$Mouse$subMap = F2(
 	});
 _elm_lang$core$Native_Platform.effectManagers['Mouse'] = {pkg: 'elm-lang/mouse', init: _elm_lang$mouse$Mouse$init, onEffects: _elm_lang$mouse$Mouse$onEffects, onSelfMsg: _elm_lang$mouse$Mouse$onSelfMsg, tag: 'sub', subMap: _elm_lang$mouse$Mouse$subMap};
 
+var _user$project$Types$getModelRecord = function (_p0) {
+	var _p1 = _p0;
+	return _p1._0;
+};
 var _user$project$Types$PositionRec = F2(
 	function (a, b) {
 		return {x: a, y: b};
@@ -8046,23 +8050,6 @@ var _user$project$Types$ModelRecord = F5(
 	function (a, b, c, d, e) {
 		return {dimensions: a, position: b, children: c, pathFromRoot: d, controllers: e};
 	});
-var _user$project$Types$getModelRecord = function (mTree) {
-	var _p0 = mTree;
-	if (_p0.ctor === 'ModelTree') {
-		return _p0._0;
-	} else {
-		return A5(
-			_user$project$Types$ModelRecord,
-			{ctor: '_Tuple2', _0: 0, _1: 0},
-			{ctor: '_Tuple2', _0: 0, _1: 0},
-			_elm_lang$core$Native_List.fromArray(
-				[]),
-			_elm_lang$core$Native_List.fromArray(
-				[]),
-			_elm_lang$core$Native_List.fromArray(
-				[]));
-	}
-};
 var _user$project$Types$ClickedCorner = F4(
 	function (a, b, c, d) {
 		return {corner: a, positionClicked: b, initialPos: c, initialDim: d};
@@ -8081,7 +8068,6 @@ var _user$project$Types$TopRight = {ctor: 'TopRight'};
 var _user$project$Types$JsonTree = function (a) {
 	return {ctor: 'JsonTree', _0: a};
 };
-var _user$project$Types$EmptyModel = {ctor: 'EmptyModel'};
 var _user$project$Types$ModelTree = function (a) {
 	return {ctor: 'ModelTree', _0: a};
 };
@@ -8120,6 +8106,35 @@ var _user$project$Types$ClickEl = F2(
 var _user$project$Types$Init = function (a) {
 	return {ctor: 'Init', _0: a};
 };
+
+var _user$project$CustomEventAttributes$onClickNoProp = function (decoder) {
+	return A3(
+		_elm_lang$html$Html_Events$onWithOptions,
+		'click',
+		{stopPropagation: true, preventDefault: false},
+		decoder);
+};
+var _user$project$CustomEventAttributes$clickableAttribute = F2(
+	function (pathFromRoot, cmd) {
+		return function (_p0) {
+			return _user$project$CustomEventAttributes$onClickNoProp(
+				_elm_lang$core$Json_Decode$succeed(_p0));
+		}(
+			A2(
+				_user$project$Types$ClickEl,
+				cmd,
+				_elm_lang$core$Maybe$Just(pathFromRoot)));
+	});
+var _user$project$CustomEventAttributes$clickableAttributeCorner = F4(
+	function (corner, pathFromRoot, initialPos, initialDims) {
+		return _user$project$CustomEventAttributes$onClickNoProp(
+			A2(
+				_elm_lang$core$Json_Decode$map,
+				function (p) {
+					return A5(_user$project$Types$ControllerBoxClick, corner, p, pathFromRoot, initialPos, initialDims);
+				},
+				_elm_lang$mouse$Mouse$position));
+	});
 
 var _user$project$Decoder$unpackDecodedJson = function (result) {
 	var _p0 = result;
@@ -8176,6 +8191,18 @@ var _user$project$Decoder$decodeJson = function (jsonStr) {
 		A2(_elm_lang$core$Json_Decode$decodeString, _user$project$Decoder$decoder, jsonStr));
 };
 
+var _user$project$Util_List$listRangeRev = function (x) {
+	return _elm_lang$core$Native_Utils.eq(x, 0) ? _elm_lang$core$Native_List.fromArray(
+		[]) : A2(
+		_elm_lang$core$List_ops['::'],
+		x,
+		_user$project$Util_List$listRange(x - 1));
+};
+var _user$project$Util_List$listRange = function (_p0) {
+	return _elm_lang$core$List$reverse(
+		_user$project$Util_List$listRangeRev(_p0));
+};
+
 var _user$project$HelloWorld$makeControllerStyle = function (controller) {
 	return _elm_lang$html$Html_Attributes$style(
 		_elm_lang$core$Native_List.fromArray(
@@ -8186,6 +8213,17 @@ var _user$project$HelloWorld$makeControllerStyle = function (controller) {
 				{ctor: '_Tuple2', _0: 'border', _1: '2px solid orange'}
 			]));
 };
+var _user$project$HelloWorld$makeControllerAttributes = F2(
+	function (modelRecord, controller) {
+		return _elm_lang$core$Native_List.fromArray(
+			[
+				_user$project$HelloWorld$makeControllerStyle(controller),
+				A2(
+				_user$project$CustomEventAttributes$clickableAttribute,
+				modelRecord.pathFromRoot,
+				_user$project$Types$DeleteController(_user$project$Types$Self))
+			]);
+	});
 var _user$project$HelloWorld$px = function (x) {
 	return A2(
 		_elm_lang$core$Basics_ops['++'],
@@ -8228,6 +8266,20 @@ var _user$project$HelloWorld$makeStyle = function (modelRecord) {
 				_1: _elm_lang$core$Basics$toString(modelRecord.pathFromRoot)
 			}
 			]));
+};
+var _user$project$HelloWorld$makeAttributes = function (modelRecord) {
+	return _elm_lang$core$Native_List.fromArray(
+		[
+			A2(
+			_elm_lang$html$Html_Attributes$attribute,
+			'pathFromRoot',
+			_elm_lang$core$Basics$toString(modelRecord.pathFromRoot)),
+			_user$project$HelloWorld$makeStyle(modelRecord),
+			A2(
+			_user$project$CustomEventAttributes$clickableAttribute,
+			modelRecord.pathFromRoot,
+			_user$project$Types$AddController(_user$project$Types$Self))
+		]);
 };
 var _user$project$HelloWorld$resizeControllerStyle = F2(
 	function (corner, _p0) {
@@ -8328,37 +8380,124 @@ var _user$project$HelloWorld$resizeControllerStyle = F2(
 				}
 				]));
 	});
-var _user$project$HelloWorld$isUnClicked = function (modelTree) {
-	var _p4 = modelTree;
-	if (_p4.ctor === 'EmptyModel') {
+var _user$project$HelloWorld$resizeControllerAttributes = F4(
+	function (corner, dimensions, pathFromRoot, mRecord) {
+		return _elm_lang$core$Native_List.fromArray(
+			[
+				A2(_user$project$HelloWorld$resizeControllerStyle, corner, dimensions),
+				A4(_user$project$CustomEventAttributes$clickableAttributeCorner, corner, pathFromRoot, mRecord.position, mRecord.dimensions),
+				_elm_lang$html$Html_Attributes$id(
+				_elm_lang$core$Basics$toString(corner))
+			]);
+	});
+var _user$project$HelloWorld$resizeControllerHtml = F4(
+	function (corner, dimensions, pathFromRoot, mRecord) {
+		return A2(
+			_elm_lang$html$Html$div,
+			A4(_user$project$HelloWorld$resizeControllerAttributes, corner, dimensions, pathFromRoot, mRecord),
+			_elm_lang$core$Native_List.fromArray(
+				[]));
+	});
+var _user$project$HelloWorld$controllerToHtml = F2(
+	function (modelRecord, controller) {
+		return A2(
+			_elm_lang$html$Html$div,
+			A2(_user$project$HelloWorld$makeControllerAttributes, modelRecord, controller),
+			A2(
+				_elm_lang$core$List$map,
+				function (c) {
+					return A4(
+						_user$project$HelloWorld$resizeControllerHtml,
+						c,
+						{ctor: '_Tuple2', _0: 10, _1: 10},
+						_elm_lang$core$Maybe$Just(modelRecord.pathFromRoot),
+						modelRecord);
+				},
+				_elm_lang$core$Native_List.fromArray(
+					[_user$project$Types$TopRight, _user$project$Types$BottomRight, _user$project$Types$BottomLeft, _user$project$Types$TopLeft, _user$project$Types$TopCenter])));
+	});
+var _user$project$HelloWorld$treeToHtml = function (_p4) {
+	var _p5 = _p4;
+	var _p6 = _p5._0;
+	var children = A2(_elm_lang$core$List$map, _user$project$HelloWorld$treeToHtml, _p6.children);
+	var controllers = A2(
+		_elm_lang$core$List$map,
+		_user$project$HelloWorld$controllerToHtml(_p6),
+		_p6.controllers);
+	return A2(
+		_elm_lang$html$Html$div,
+		_user$project$HelloWorld$makeAttributes(_p6),
+		A2(_elm_lang$core$Basics_ops['++'], controllers, children));
+};
+var _user$project$HelloWorld$modelFromJson = F2(
+	function (pathFromRoot, _p7) {
+		var _p8 = _p7;
+		var _p9 = _p8._0;
+		var childrenNodeIds = _user$project$Util_List$listRange(
+			_elm_lang$core$List$length(_p9.children));
+		var children = A3(
+			_elm_lang$core$List$map2,
+			function (nextId) {
+				return _user$project$HelloWorld$modelFromJson(
+					A2(_elm_lang$core$List_ops['::'], nextId, pathFromRoot));
+			},
+			childrenNodeIds,
+			_p9.children);
+		return _user$project$Types$ModelTree(
+			{
+				dimensions: _p9.dimensions,
+				position: _p9.position,
+				pathFromRoot: pathFromRoot,
+				children: children,
+				controllers: _elm_lang$core$Native_List.fromArray(
+					[])
+			});
+	});
+var _user$project$HelloWorld$init = function (_p10) {
+	var _p11 = _p10;
+	return {
+		ctor: '_Tuple2',
+		_0: function (_p12) {
+			return A2(
+				_user$project$HelloWorld$modelFromJson,
+				_elm_lang$core$Native_List.fromArray(
+					[]),
+				_user$project$Decoder$decodeJson(_p12));
+		}(_p11.jsonStr),
+		_1: _elm_lang$core$Platform_Cmd$none
+	};
+};
+var _user$project$HelloWorld$isUnClicked = function (_p13) {
+	var _p14 = _p13;
+	var _p15 = _p14._0.controllers;
+	if (_p15.ctor === '[]') {
 		return true;
 	} else {
-		var _p5 = _p4._0.controllers;
-		if (_p5.ctor === '[]') {
-			return true;
-		} else {
-			return false;
-		}
+		return false;
 	}
 };
-var _user$project$HelloWorld$deleteClickedNode = function (mTree) {
-	var _p6 = mTree;
-	if (_p6.ctor === 'EmptyModel') {
-		return _user$project$Types$EmptyModel;
-	} else {
-		var _p7 = _p6._0;
-		var nonClickedChildren = A2(_elm_lang$core$List$filter, _user$project$HelloWorld$isUnClicked, _p7.children);
-		var newChildren = A2(_elm_lang$core$List$map, _user$project$HelloWorld$deleteClickedNode, nonClickedChildren);
-		return _user$project$Types$ModelTree(
-			_elm_lang$core$Native_Utils.update(
-				_p7,
-				{children: newChildren}));
-	}
+var _user$project$HelloWorld$deleteClickedNode = function (_p16) {
+	var _p17 = _p16;
+	var _p18 = _p17._0;
+	var nonClickedChildren = A2(_elm_lang$core$List$filter, _user$project$HelloWorld$isUnClicked, _p18.children);
+	var newChildren = A2(_elm_lang$core$List$map, _user$project$HelloWorld$deleteClickedNode, nonClickedChildren);
+	return _user$project$Types$ModelTree(
+		_elm_lang$core$Native_Utils.update(
+			_p18,
+			{children: newChildren}));
 };
 var _user$project$HelloWorld$handleKeyPress = F2(
 	function (x, mTree) {
 		return _elm_lang$core$Native_Utils.eq(x, 100) ? _user$project$HelloWorld$deleteClickedNode(mTree) : mTree;
 	});
+var _user$project$HelloWorld$getClickedCorner = function (mRecord) {
+	var _p19 = mRecord.controllers;
+	if (_p19.ctor === '[]') {
+		return _elm_lang$core$Maybe$Nothing;
+	} else {
+		return _p19._0.clickedCorner;
+	}
+};
 var _user$project$HelloWorld$updateDimensions = F3(
 	function (clickedCorner, pMouse, mRecord) {
 		var dimY = _elm_lang$core$Basics$snd(clickedCorner.initialDim);
@@ -8369,8 +8508,8 @@ var _user$project$HelloWorld$updateDimensions = F3(
 		var dx = pMouse.x - pClicked.x;
 		var dy = pMouse.y - pClicked.y;
 		var corner = clickedCorner.corner;
-		var _p8 = corner;
-		switch (_p8.ctor) {
+		var _p20 = corner;
+		switch (_p20.ctor) {
 			case 'TopRight':
 				return _elm_lang$core$Native_Utils.update(
 					mRecord,
@@ -8408,89 +8547,69 @@ var _user$project$HelloWorld$updateDimensions = F3(
 					});
 		}
 	});
-var _user$project$HelloWorld$getClickedCorner = function (mRecord) {
-	var _p9 = mRecord.controllers;
-	if (_p9.ctor === '[]') {
-		return _elm_lang$core$Maybe$Nothing;
-	} else {
-		return _p9._0.clickedCorner;
-	}
-};
 var _user$project$HelloWorld$resizeClicked = F2(
-	function (pMouse, mTree) {
-		var _p10 = mTree;
-		if (_p10.ctor === 'EmptyModel') {
-			return _user$project$Types$EmptyModel;
+	function (pMouse, _p21) {
+		var _p22 = _p21;
+		var _p24 = _p22._0;
+		var _p23 = _user$project$HelloWorld$getClickedCorner(_p24);
+		if (_p23.ctor === 'Nothing') {
+			return _user$project$Types$ModelTree(
+				_elm_lang$core$Native_Utils.update(
+					_p24,
+					{
+						children: A2(
+							_elm_lang$core$List$map,
+							_user$project$HelloWorld$resizeClicked(pMouse),
+							_p24.children)
+					}));
 		} else {
-			var _p12 = _p10._0;
-			var _p11 = _user$project$HelloWorld$getClickedCorner(_p12);
-			if (_p11.ctor === 'Nothing') {
-				return _user$project$Types$ModelTree(
-					_elm_lang$core$Native_Utils.update(
-						_p12,
-						{
-							children: A2(
-								_elm_lang$core$List$map,
-								_user$project$HelloWorld$resizeClicked(pMouse),
-								_p12.children)
-						}));
-			} else {
-				return _user$project$Types$ModelTree(
-					A3(_user$project$HelloWorld$updateDimensions, _p11._0, pMouse, _p12));
-			}
+			return _user$project$Types$ModelTree(
+				A3(_user$project$HelloWorld$updateDimensions, _p23._0, pMouse, _p24));
 		}
 	});
 var _user$project$HelloWorld$getController = function (cs) {
-	var _p13 = cs;
-	if (_p13.ctor === '[]') {
+	var _p25 = cs;
+	if (_p25.ctor === '[]') {
 		return _elm_lang$core$Maybe$Nothing;
 	} else {
-		return _elm_lang$core$Maybe$Just(_p13._0);
+		return _elm_lang$core$Maybe$Just(_p25._0);
 	}
 };
-var _user$project$HelloWorld$deleteController = function (mTree) {
-	var _p14 = mTree;
-	if (_p14.ctor === 'ModelTree') {
-		return _user$project$Types$ModelTree(
-			_elm_lang$core$Native_Utils.update(
-				_p14._0,
-				{
-					controllers: _elm_lang$core$Native_List.fromArray(
-						[])
-				}));
-	} else {
-		return mTree;
-	}
+var _user$project$HelloWorld$deleteController = function (_p26) {
+	var _p27 = _p26;
+	return _user$project$Types$ModelTree(
+		_elm_lang$core$Native_Utils.update(
+			_p27._0,
+			{
+				controllers: _elm_lang$core$Native_List.fromArray(
+					[])
+			}));
 };
-var _user$project$HelloWorld$addController = function (mTree) {
-	var _p15 = mTree;
-	if (_p15.ctor === 'ModelTree') {
-		return _user$project$Types$ModelTree(
-			_elm_lang$core$Native_Utils.update(
-				_p15._0,
-				{
-					controllers: _elm_lang$core$Native_List.fromArray(
-						[
-							{clickedCorner: _elm_lang$core$Maybe$Nothing}
-						])
-				}));
-	} else {
-		return mTree;
-	}
+var _user$project$HelloWorld$addController = function (_p28) {
+	var _p29 = _p28;
+	return _user$project$Types$ModelTree(
+		_elm_lang$core$Native_Utils.update(
+			_p29._0,
+			{
+				controllers: _elm_lang$core$Native_List.fromArray(
+					[
+						{clickedCorner: _elm_lang$core$Maybe$Nothing}
+					])
+			}));
 };
 var _user$project$HelloWorld$modifyDesc = F3(
 	function (pathToDesc, completeTree, newSubTreeFunc) {
-		var _p16 = pathToDesc;
-		if (_p16.ctor === '[]') {
+		var _p30 = pathToDesc;
+		if (_p30.ctor === '[]') {
 			return newSubTreeFunc(completeTree);
 		} else {
 			var modelRecord = _user$project$Types$getModelRecord(completeTree);
 			var recurseIfMatches = function (subTree) {
-				var _p17 = _user$project$Types$getModelRecord(subTree).pathFromRoot;
-				if (_p17.ctor === '[]') {
+				var _p31 = _user$project$Types$getModelRecord(subTree).pathFromRoot;
+				if (_p31.ctor === '[]') {
 					return subTree;
 				} else {
-					return _elm_lang$core$Native_Utils.eq(_p17._0, _p16._0) ? A3(_user$project$HelloWorld$modifyDesc, _p16._1, subTree, newSubTreeFunc) : subTree;
+					return _elm_lang$core$Native_Utils.eq(_p31._0, _p30._0) ? A3(_user$project$HelloWorld$modifyDesc, _p30._1, subTree, newSubTreeFunc) : subTree;
 				}
 			};
 			var newChildren = A2(_elm_lang$core$List$map, recurseIfMatches, modelRecord.children);
@@ -8519,41 +8638,37 @@ var _user$project$HelloWorld$deleteControllerFromTree = F2(
 var _user$project$HelloWorld$toggleControllerResizeClick = F6(
 	function (corner, pathToDesc, p, pos, dim, mTree) {
 		var toggleClick = F2(
-			function (corner, mTree) {
-				var _p18 = mTree;
-				if (_p18.ctor === 'EmptyModel') {
-					return _user$project$Types$EmptyModel;
+			function (corner, _p32) {
+				var _p33 = _p32;
+				var _p36 = _p33._0;
+				var _p34 = _user$project$HelloWorld$getController(_p36.controllers);
+				if (_p34.ctor === 'Nothing') {
+					return _user$project$Types$ModelTree(_p36);
 				} else {
-					var _p21 = _p18._0;
-					var _p19 = _user$project$HelloWorld$getController(_p21.controllers);
-					if (_p19.ctor === 'Nothing') {
-						return _user$project$Types$ModelTree(_p21);
+					var _p35 = _p34._0.clickedCorner;
+					if (_p35.ctor === 'Nothing') {
+						return _user$project$Types$ModelTree(
+							_elm_lang$core$Native_Utils.update(
+								_p36,
+								{
+									controllers: _elm_lang$core$Native_List.fromArray(
+										[
+											{
+											clickedCorner: _elm_lang$core$Maybe$Just(
+												{corner: corner, positionClicked: p, initialPos: pos, initialDim: dim})
+										}
+										])
+								}));
 					} else {
-						var _p20 = _p19._0.clickedCorner;
-						if (_p20.ctor === 'Nothing') {
-							return _user$project$Types$ModelTree(
-								_elm_lang$core$Native_Utils.update(
-									_p21,
-									{
-										controllers: _elm_lang$core$Native_List.fromArray(
-											[
-												{
-												clickedCorner: _elm_lang$core$Maybe$Just(
-													{corner: corner, positionClicked: p, initialPos: pos, initialDim: dim})
-											}
-											])
-									}));
-						} else {
-							return _user$project$Types$ModelTree(
-								_elm_lang$core$Native_Utils.update(
-									_p21,
-									{
-										controllers: _elm_lang$core$Native_List.fromArray(
-											[
-												{clickedCorner: _elm_lang$core$Maybe$Nothing}
-											])
-									}));
-						}
+						return _user$project$Types$ModelTree(
+							_elm_lang$core$Native_Utils.update(
+								_p36,
+								{
+									controllers: _elm_lang$core$Native_List.fromArray(
+										[
+											{clickedCorner: _elm_lang$core$Maybe$Nothing}
+										])
+								}));
 					}
 				}
 			});
@@ -8562,41 +8677,6 @@ var _user$project$HelloWorld$toggleControllerResizeClick = F6(
 			_elm_lang$core$List$reverse(pathToDesc),
 			mTree,
 			toggleClick(corner));
-	});
-var _user$project$HelloWorld$listRangeRev = function (x) {
-	return _elm_lang$core$Native_Utils.eq(x, 0) ? _elm_lang$core$Native_List.fromArray(
-		[]) : A2(
-		_elm_lang$core$List_ops['::'],
-		x,
-		_user$project$HelloWorld$listRange(x - 1));
-};
-var _user$project$HelloWorld$listRange = function (_p22) {
-	return _elm_lang$core$List$reverse(
-		_user$project$HelloWorld$listRangeRev(_p22));
-};
-var _user$project$HelloWorld$modelFromJson = F2(
-	function (pathFromRoot, _p23) {
-		var _p24 = _p23;
-		var _p25 = _p24._0;
-		var childrenNodeIds = _user$project$HelloWorld$listRange(
-			_elm_lang$core$List$length(_p25.children));
-		var children = A3(
-			_elm_lang$core$List$map2,
-			function (nextId) {
-				return _user$project$HelloWorld$modelFromJson(
-					A2(_elm_lang$core$List_ops['::'], nextId, pathFromRoot));
-			},
-			childrenNodeIds,
-			_p25.children);
-		return _user$project$Types$ModelTree(
-			{
-				dimensions: _p25.dimensions,
-				position: _p25.position,
-				pathFromRoot: pathFromRoot,
-				children: children,
-				controllers: _elm_lang$core$Native_List.fromArray(
-					[])
-			});
 	});
 var _user$project$HelloWorld$updateModelTree = F2(
 	function (msg, completeModelTree) {
@@ -8607,206 +8687,79 @@ var _user$project$HelloWorld$updateModelTree = F2(
 				'msg = ',
 				_elm_lang$core$Basics$toString(msg)),
 			function () {
-				var _p26 = msg;
-				_v18_8:
+				var _p37 = msg;
+				_v20_7:
 				do {
-					_v18_4:
-					do {
-						switch (_p26.ctor) {
-							case 'Init':
-								return {
-									ctor: '_Tuple2',
-									_0: function (_p27) {
-										return A2(
-											_user$project$HelloWorld$modelFromJson,
-											_elm_lang$core$Native_List.fromArray(
-												[]),
-											_user$project$Decoder$decodeJson(_p27));
-									}(_p26._0),
-									_1: _elm_lang$core$Platform_Cmd$none
-								};
-							case 'ClickEl':
-								if (_p26._1.ctor === 'Nothing') {
-									return {ctor: '_Tuple2', _0: completeModelTree, _1: _elm_lang$core$Platform_Cmd$none};
-								} else {
-									switch (_p26._0.ctor) {
-										case 'AddController':
-											if (_p26._0._0.ctor === 'Self') {
-												return {
-													ctor: '_Tuple2',
-													_0: A2(_user$project$HelloWorld$addControllerToTree, _p26._1._0, completeModelTree),
-													_1: _elm_lang$core$Platform_Cmd$none
-												};
-											} else {
-												break _v18_4;
-											}
-										case 'DeleteController':
-											if (_p26._0._0.ctor === 'Self') {
-												return {
-													ctor: '_Tuple2',
-													_0: A2(_user$project$HelloWorld$deleteControllerFromTree, _p26._1._0, completeModelTree),
-													_1: _elm_lang$core$Platform_Cmd$none
-												};
-											} else {
-												break _v18_4;
-											}
-										default:
-											break _v18_4;
-									}
+					switch (_p37.ctor) {
+						case 'Init':
+							return {
+								ctor: '_Tuple2',
+								_0: function (_p38) {
+									return A2(
+										_user$project$HelloWorld$modelFromJson,
+										_elm_lang$core$Native_List.fromArray(
+											[]),
+										_user$project$Decoder$decodeJson(_p38));
+								}(_p37._0),
+								_1: _elm_lang$core$Platform_Cmd$none
+							};
+						case 'ClickEl':
+							if (_p37._1.ctor === 'Nothing') {
+								return {ctor: '_Tuple2', _0: completeModelTree, _1: _elm_lang$core$Platform_Cmd$none};
+							} else {
+								switch (_p37._0.ctor) {
+									case 'AddController':
+										if (_p37._0._0.ctor === 'Self') {
+											return {
+												ctor: '_Tuple2',
+												_0: A2(_user$project$HelloWorld$addControllerToTree, _p37._1._0, completeModelTree),
+												_1: _elm_lang$core$Platform_Cmd$none
+											};
+										} else {
+											break _v20_7;
+										}
+									case 'DeleteController':
+										if (_p37._0._0.ctor === 'Self') {
+											return {
+												ctor: '_Tuple2',
+												_0: A2(_user$project$HelloWorld$deleteControllerFromTree, _p37._1._0, completeModelTree),
+												_1: _elm_lang$core$Platform_Cmd$none
+											};
+										} else {
+											break _v20_7;
+										}
+									default:
+										break _v20_7;
 								}
-							case 'ControllerBoxClick':
-								if (_p26._2.ctor === 'Just') {
-									return {
-										ctor: '_Tuple2',
-										_0: A6(_user$project$HelloWorld$toggleControllerResizeClick, _p26._0, _p26._2._0, _p26._1, _p26._3, _p26._4, completeModelTree),
-										_1: _elm_lang$core$Platform_Cmd$none
-									};
-								} else {
-									break _v18_8;
-								}
-							case 'KeyPress':
+							}
+						case 'ControllerBoxClick':
+							if (_p37._2.ctor === 'Just') {
 								return {
 									ctor: '_Tuple2',
-									_0: A2(_user$project$HelloWorld$handleKeyPress, _p26._0, completeModelTree),
+									_0: A6(_user$project$HelloWorld$toggleControllerResizeClick, _p37._0, _p37._2._0, _p37._1, _p37._3, _p37._4, completeModelTree),
 									_1: _elm_lang$core$Platform_Cmd$none
 								};
-							case 'MouseMove':
-								return {
-									ctor: '_Tuple2',
-									_0: A2(_user$project$HelloWorld$resizeClicked, _p26._0, completeModelTree),
-									_1: _elm_lang$core$Platform_Cmd$none
-								};
-							default:
-								break _v18_8;
-						}
-					} while(false);
-					return {ctor: '_Tuple2', _0: completeModelTree, _1: _elm_lang$core$Platform_Cmd$none};
+							} else {
+								break _v20_7;
+							}
+						case 'KeyPress':
+							return {
+								ctor: '_Tuple2',
+								_0: A2(_user$project$HelloWorld$handleKeyPress, _p37._0, completeModelTree),
+								_1: _elm_lang$core$Platform_Cmd$none
+							};
+						case 'MouseMove':
+							return {
+								ctor: '_Tuple2',
+								_0: A2(_user$project$HelloWorld$resizeClicked, _p37._0, completeModelTree),
+								_1: _elm_lang$core$Platform_Cmd$none
+							};
+						default:
+							break _v20_7;
+					}
 				} while(false);
 				return {ctor: '_Tuple2', _0: completeModelTree, _1: _elm_lang$core$Platform_Cmd$none};
 			}());
-	});
-var _user$project$HelloWorld$init = function (_p28) {
-	var _p29 = _p28;
-	return A2(
-		_user$project$HelloWorld$updateModelTree,
-		_user$project$Types$Init(_p29.jsonStr),
-		_user$project$Types$EmptyModel);
-};
-var _user$project$HelloWorld$onClickNoProp = function (decoder) {
-	return A3(
-		_elm_lang$html$Html_Events$onWithOptions,
-		'click',
-		{stopPropagation: true, preventDefault: false},
-		decoder);
-};
-var _user$project$HelloWorld$clickableAttribute = F2(
-	function (pathFromRoot, cmd) {
-		return function (_p30) {
-			return _user$project$HelloWorld$onClickNoProp(
-				_elm_lang$core$Json_Decode$succeed(_p30));
-		}(
-			A2(
-				_user$project$Types$ClickEl,
-				cmd,
-				_elm_lang$core$Maybe$Just(pathFromRoot)));
-	});
-var _user$project$HelloWorld$makeControllerAttributes = F2(
-	function (modelRecord, controller) {
-		return _elm_lang$core$Native_List.fromArray(
-			[
-				_user$project$HelloWorld$makeControllerStyle(controller),
-				A2(
-				_user$project$HelloWorld$clickableAttribute,
-				modelRecord.pathFromRoot,
-				_user$project$Types$DeleteController(_user$project$Types$Self))
-			]);
-	});
-var _user$project$HelloWorld$makeAttributes = function (modelRecord) {
-	return _elm_lang$core$Native_List.fromArray(
-		[
-			A2(
-			_elm_lang$html$Html_Attributes$attribute,
-			'pathFromRoot',
-			_elm_lang$core$Basics$toString(modelRecord.pathFromRoot)),
-			_user$project$HelloWorld$makeStyle(modelRecord),
-			A2(
-			_user$project$HelloWorld$clickableAttribute,
-			modelRecord.pathFromRoot,
-			_user$project$Types$AddController(_user$project$Types$Self))
-		]);
-};
-var _user$project$HelloWorld$clickableAttributeCorner = F4(
-	function (corner, pathFromRoot, initialPos, initialDims) {
-		return _user$project$HelloWorld$onClickNoProp(
-			A2(
-				_elm_lang$core$Json_Decode$map,
-				function (p) {
-					return A5(_user$project$Types$ControllerBoxClick, corner, p, pathFromRoot, initialPos, initialDims);
-				},
-				_elm_lang$mouse$Mouse$position));
-	});
-var _user$project$HelloWorld$resizeControllerAttributes = F4(
-	function (corner, dimensions, pathFromRoot, mRecord) {
-		return _elm_lang$core$Native_List.fromArray(
-			[
-				A2(_user$project$HelloWorld$resizeControllerStyle, corner, dimensions),
-				A4(_user$project$HelloWorld$clickableAttributeCorner, corner, pathFromRoot, mRecord.position, mRecord.dimensions),
-				_elm_lang$html$Html_Attributes$id(
-				_elm_lang$core$Basics$toString(corner))
-			]);
-	});
-var _user$project$HelloWorld$resizeControllerHtml = F4(
-	function (corner, dimensions, pathFromRoot, mRecord) {
-		return A2(
-			_elm_lang$html$Html$div,
-			A4(_user$project$HelloWorld$resizeControllerAttributes, corner, dimensions, pathFromRoot, mRecord),
-			_elm_lang$core$Native_List.fromArray(
-				[]));
-	});
-var _user$project$HelloWorld$controllerToHtml = F2(
-	function (modelRecord, controller) {
-		return A2(
-			_elm_lang$html$Html$div,
-			A2(_user$project$HelloWorld$makeControllerAttributes, modelRecord, controller),
-			A2(
-				_elm_lang$core$List$map,
-				function (c) {
-					return A4(
-						_user$project$HelloWorld$resizeControllerHtml,
-						c,
-						{ctor: '_Tuple2', _0: 10, _1: 10},
-						_elm_lang$core$Maybe$Just(modelRecord.pathFromRoot),
-						modelRecord);
-				},
-				_elm_lang$core$Native_List.fromArray(
-					[_user$project$Types$TopRight, _user$project$Types$BottomRight, _user$project$Types$BottomLeft, _user$project$Types$TopLeft, _user$project$Types$TopCenter])));
-	});
-var _user$project$HelloWorld$treeToHtml = function (modelTree) {
-	var _p31 = modelTree;
-	if (_p31.ctor === 'EmptyModel') {
-		return _elm_lang$html$Html$text('empty model :(');
-	} else {
-		var _p32 = _p31._0;
-		var children = A2(_elm_lang$core$List$map, _user$project$HelloWorld$treeToHtml, _p32.children);
-		var controllers = A2(
-			_elm_lang$core$List$map,
-			_user$project$HelloWorld$controllerToHtml(_p32),
-			_p32.controllers);
-		return A2(
-			_elm_lang$html$Html$div,
-			_user$project$HelloWorld$makeAttributes(_p32),
-			A2(_elm_lang$core$Basics_ops['++'], controllers, children));
-	}
-};
-var _user$project$HelloWorld$clickableAttributeMover = F2(
-	function (pathFromRoot, initialPos) {
-		return _user$project$HelloWorld$onClickNoProp(
-			A2(
-				_elm_lang$core$Json_Decode$map,
-				function (p) {
-					return A3(_user$project$Types$MoverBoxClick, p, pathFromRoot, initialPos);
-				},
-				_elm_lang$mouse$Mouse$position));
 	});
 var _user$project$HelloWorld$jsonMessage = _elm_lang$core$Native_Platform.incomingPort('jsonMessage', _elm_lang$core$Json_Decode$string);
 var _user$project$HelloWorld$subscriptions = function (model) {

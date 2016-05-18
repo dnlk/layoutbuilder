@@ -1,21 +1,21 @@
 port module HelloWorld exposing (..)
 
 import Debug
+
 import List
 import Html exposing (Html, Attribute, node, div, text)
 import Html.Attributes exposing (style, attribute, id)
-import Html.Events exposing (onClick, onWithOptions)
-import Result exposing (Result)
-import Json.Decode exposing (succeed)
-import Json.Decode as Decode exposing (Decoder)
 import Html.App
+import Result exposing (Result)
 import Platform.Cmd as Cmd exposing (Cmd)
 import Platform.Sub as Sub exposing (Sub)
 import Mouse
 import Keyboard
 
+import Util.List exposing (..)
 import Decoder exposing (decodeJson)
 import Types exposing (..)
+import CustomEventAttributes exposing (..)
 
 
 {- Ports -}
@@ -29,44 +29,13 @@ subscriptions model =
     , Keyboard.presses KeyPress
     ]
 
-{- Custom Html Event Handlers -}
-
-onClickNoProp : Decoder msg -> Attribute msg
-onClickNoProp decoder =
-  onWithOptions 
-    "click" 
-    { stopPropagation = True, preventDefault = False } 
-    decoder
-
-
-clickableAttribute : List Int -> TreeCmd -> Attribute Msg
-clickableAttribute pathFromRoot cmd =
-  onClickNoProp << succeed <| ClickEl cmd (Just pathFromRoot)
-
-clickableAttributeCorner : Corner -> PathFromRoot -> Position -> Dimensions -> Attribute Msg
-clickableAttributeCorner corner pathFromRoot initialPos initialDims =
-  onClickNoProp 
-    (Decode.map (\p -> ControllerBoxClick corner p pathFromRoot initialPos initialDims) Mouse.position)
-
-clickableAttributeMover : PathFromRoot -> Position -> Attribute Msg
-clickableAttributeMover pathFromRoot initialPos =
-  onClickNoProp
-    (Decode.map (\p -> MoverBoxClick p pathFromRoot initialPos) Mouse.position)
-
-{- General Utils -}
-
-listRangeRev : Int -> List Int
-listRangeRev x =
-  if x == 0
-  then []
-  else x :: listRange (x - 1)
-
-listRange : Int -> List Int
-listRange = List.reverse << listRangeRev
 
 {- Tree Modifying Functions -}
+{- There is a lot of code here. There needs to a better way to handle messages
+   and events. Once that is figured out, this section will be ready to
+   refactor -}
 
-modifyDesc : List Int -> ModelTree -> (ModelTree -> ModelTree) -> ModelTree
+modifyDesc : PathFromRoot -> ModelTree -> (ModelTree -> ModelTree) -> ModelTree
 modifyDesc pathToDesc completeTree newSubTreeFunc =
 
   case pathToDesc of
@@ -89,25 +58,19 @@ modifyDesc pathToDesc completeTree newSubTreeFunc =
 
 
 addController : ModelTree -> ModelTree
-addController mTree =
-  case mTree of
-    (ModelTree modelRecord) ->
-      ModelTree { modelRecord | controllers = [{clickedCorner = Nothing}] }
-    EmptyModel -> mTree
+addController (ModelTree modelRecord) =
+  ModelTree { modelRecord | controllers = [{clickedCorner = Nothing}] }
 
-addControllerToTree : List Int -> ModelTree -> ModelTree
+addControllerToTree : PathFromRoot -> ModelTree -> ModelTree
 addControllerToTree pathToDesc completeTree =
-    modifyDesc (List.reverse pathToDesc) completeTree addController
+  modifyDesc (List.reverse pathToDesc) completeTree addController
 
 
 deleteController : ModelTree -> ModelTree
-deleteController mTree =
-  case mTree of
-    ModelTree modelRecord ->
-      ModelTree { modelRecord | controllers = [] }
-    EmptyModel -> mTree
+deleteController (ModelTree modelRecord) =
+  ModelTree { modelRecord | controllers = [] }
 
-deleteControllerFromTree : List Int -> ModelTree -> ModelTree
+deleteControllerFromTree : PathFromRoot -> ModelTree -> ModelTree
 deleteControllerFromTree pathToDesc completeTree =
   modifyDesc (List.reverse pathToDesc) completeTree deleteController
 
@@ -118,32 +81,31 @@ getController cs =
     [] -> Nothing
     x :: xs -> Just x
 
-toggleControllerResizeClick : Corner -> List Int -> PositionRec -> Position -> Dimensions -> ModelTree -> ModelTree
+toggleControllerResizeClick : Corner -> PathFromRoot -> PositionRec -> Position -> Dimensions -> ModelTree -> ModelTree
 toggleControllerResizeClick corner pathToDesc p pos dim mTree =
   let
-    toggleClick corner mTree =
-      case mTree of
+    toggleClick corner (ModelTree mRecord) =
 
-        EmptyModel -> EmptyModel
+        case getController mRecord.controllers of
+          Nothing -> ModelTree mRecord
 
-        ModelTree mRecord ->
-          case getController mRecord.controllers of
-            Nothing -> ModelTree mRecord
-
-            Just controller -> 
-              case controller.clickedCorner of
-                Nothing -> ModelTree { mRecord | controllers = [{clickedCorner = Just {corner = corner, positionClicked = p, initialPos = pos, initialDim = dim}}]}
-                Just _ -> ModelTree { mRecord | controllers = [{clickedCorner = Nothing}]}
+          Just controller -> 
+            case controller.clickedCorner of
+              Nothing -> 
+                ModelTree 
+                  { mRecord 
+                  | controllers = 
+                    [{clickedCorner = 
+                      Just 
+                        { corner = corner
+                        , positionClicked = p
+                        , initialPos = pos
+                        , initialDim = dim
+                        }}]}
+              Just _ -> ModelTree { mRecord | controllers = [{clickedCorner = Nothing}]}
 
   in
     modifyDesc (List.reverse pathToDesc) mTree (toggleClick corner)
-
-
-getClickedCorner : ModelRecord -> Maybe ClickedCorner
-getClickedCorner mRecord =
-  case mRecord.controllers of
-    [] -> Nothing
-    c :: _ -> c.clickedCorner
 
 
 updateDimensions : ClickedCorner -> PositionRec -> ModelRecord -> ModelRecord
@@ -160,49 +122,61 @@ updateDimensions clickedCorner pMouse mRecord =
 
   in
     case corner of
-      TopRight -> { mRecord | dimensions = (dimX + dx, dimY - dy), position = (posX, posY + dy) }
-      BottomRight -> { mRecord | dimensions = (dimX + dx, dimY + dy), position = (posX, posY) }
-      BottomLeft -> { mRecord | dimensions = (dimX - dx, dimY + dy), position = (posX + dx, posY)}
-      TopLeft -> { mRecord | dimensions = (dimX - dx, dimY - dy), position = (posX + dx, posY + dy)}
-      TopCenter -> { mRecord | dimensions = (dimX, dimY), position = (posX + dx, posY + dy)}
+      TopRight -> 
+        { mRecord 
+        | dimensions = (dimX + dx, dimY - dy)
+        , position = (posX, posY + dy) 
+        }
+      BottomRight -> 
+        { mRecord 
+        | dimensions = (dimX + dx, dimY + dy)
+        , position = (posX, posY) 
+        }
+      BottomLeft -> 
+        { mRecord 
+        | dimensions = (dimX - dx, dimY + dy)
+        , position = (posX + dx, posY)
+        }
+      TopLeft -> 
+        { mRecord 
+        | dimensions = (dimX - dx, dimY - dy)
+        , position = (posX + dx, posY + dy)
+        }
+      TopCenter -> 
+        { mRecord 
+        | dimensions = (dimX, dimY)
+        , position = (posX + dx, posY + dy)
+        }
 
-
+getClickedCorner : ModelRecord -> Maybe ClickedCorner
+getClickedCorner mRecord =
+  case mRecord.controllers of
+    [] -> Nothing
+    c :: _ -> c.clickedCorner
 
 resizeClicked : PositionRec -> ModelTree -> ModelTree
-resizeClicked pMouse mTree =
-  case mTree of
-
-    EmptyModel -> EmptyModel
-
-    ModelTree mRecord ->
-
-      case getClickedCorner mRecord of
-
-        Nothing -> ModelTree { mRecord | children = (List.map (resizeClicked pMouse) mRecord.children)}
-
-        Just clickedCorner -> ModelTree <| updateDimensions clickedCorner pMouse mRecord
+resizeClicked pMouse (ModelTree mRecord) =
+    case getClickedCorner mRecord of
+      Nothing -> 
+        ModelTree 
+          { mRecord 
+          | children = (List.map (resizeClicked pMouse) mRecord.children)}
+      Just clickedCorner -> 
+        ModelTree <| updateDimensions clickedCorner pMouse mRecord
 
 isUnClicked : ModelTree -> Bool
-isUnClicked modelTree =
-  case modelTree of
-     EmptyModel -> True
-     ModelTree mRecord ->
-      case mRecord.controllers of 
-        [] -> True
-        _ -> False
+isUnClicked (ModelTree mRecord) =
+    case mRecord.controllers of 
+      [] -> True
+      _ -> False
 
 deleteClickedNode : ModelTree -> ModelTree
-deleteClickedNode mTree =
-  case mTree of
-
-    EmptyModel -> EmptyModel
-
-    ModelTree mRecord ->
-      let
-        nonClickedChildren = List.filter isUnClicked mRecord.children
-        newChildren = List.map deleteClickedNode nonClickedChildren
-      in
-        ModelTree { mRecord | children = newChildren}
+deleteClickedNode (ModelTree mRecord) =
+    let
+      nonClickedChildren = List.filter isUnClicked mRecord.children
+      newChildren = List.map deleteClickedNode nonClickedChildren
+    in
+      ModelTree { mRecord | children = newChildren}
 
 
 handleKeyPress : Int -> ModelTree -> ModelTree
@@ -232,6 +206,7 @@ modelFromJson pathFromRoot (JsonTree jsonTree) =
       }
 
 {- Update handler -}
+{- A better way of handling the messages needs to be figured out. -}
 
 updateModelTree : Msg -> ModelTree -> (ModelTree, Cmd Msg)
 updateModelTree msg completeModelTree =
@@ -241,19 +216,20 @@ updateModelTree msg completeModelTree =
 
     ClickEl _ Nothing -> (completeModelTree, Cmd.none)
 
-    ClickEl (AddController Self) (Just path) -> (addControllerToTree path completeModelTree, Cmd.none)
+    ClickEl (AddController Self) (Just path) -> 
+      (addControllerToTree path completeModelTree, Cmd.none)
 
-    ClickEl (DeleteController Self) (Just path) -> (deleteControllerFromTree path completeModelTree, Cmd.none)
+    ClickEl (DeleteController Self) (Just path) -> 
+      (deleteControllerFromTree path completeModelTree, Cmd.none)
 
-    ClickEl _ _ -> (completeModelTree, Cmd.none)
+    ControllerBoxClick corner p (Just path) pos dim -> 
+      (toggleControllerResizeClick corner path p pos dim completeModelTree, Cmd.none)
 
-    ControllerBoxClick corner p (Just path) pos dim -> (toggleControllerResizeClick corner path p pos dim completeModelTree, Cmd.none)
+    KeyPress x -> 
+      (handleKeyPress x completeModelTree, Cmd.none)
 
-    --MoverBoxClick pClick (Just path) initialPos -> (toggleMoverBoxClick path pClick initialPos completeModelTree, Cmd.none)
-
-    KeyPress x -> (handleKeyPress x completeModelTree, Cmd.none)
-
-    MouseMove p -> (resizeClicked p completeModelTree, Cmd.none)
+    MouseMove p -> 
+      (resizeClicked p completeModelTree, Cmd.none)
 
     _ -> (completeModelTree, Cmd.none)
   )
@@ -325,14 +301,14 @@ resizeControllerStyle corner (x, y) =
       , ("width", px x)
       ]
 
-resizeControllerAttributes : Corner -> Dimensions -> PathFromRoot -> ModelRecord -> List (Attribute Msg)
+resizeControllerAttributes : Corner -> Dimensions -> Maybe PathFromRoot -> ModelRecord -> List (Attribute Msg)
 resizeControllerAttributes corner dimensions pathFromRoot mRecord =
   [ resizeControllerStyle corner dimensions
   , clickableAttributeCorner corner pathFromRoot mRecord.position mRecord.dimensions
   , id (toString corner)
   ]
 
-resizeControllerHtml : Corner -> Dimensions -> PathFromRoot -> ModelRecord -> Html Msg
+resizeControllerHtml : Corner -> Dimensions -> Maybe PathFromRoot -> ModelRecord -> Html Msg
 resizeControllerHtml corner dimensions pathFromRoot mRecord =
   div (resizeControllerAttributes corner dimensions pathFromRoot mRecord) []
 
@@ -345,24 +321,20 @@ controllerToHtml modelRecord controller =
       [TopRight, BottomRight, BottomLeft, TopLeft, TopCenter])
 
 treeToHtml : ModelTree -> Html Msg
-treeToHtml modelTree =
-  case modelTree of
-    EmptyModel -> text "empty model :("
-
-    ModelTree modelRecord -> 
-      let
-        controllers = List.map (controllerToHtml modelRecord) modelRecord.controllers
-        children = List.map treeToHtml modelRecord.children
-      in
-        controllers ++ children
-        |> div (makeAttributes modelRecord)
+treeToHtml (ModelTree modelRecord) =
+    let
+      controllers = List.map (controllerToHtml modelRecord) modelRecord.controllers
+      children = List.map treeToHtml modelRecord.children
+    in
+      controllers ++ children
+      |> div (makeAttributes modelRecord)
 
 
 {- View -}
 
 init : {jsonStr : String} -> (ModelTree, Cmd Msg)
 init {jsonStr} =
-  updateModelTree (Init jsonStr) EmptyModel
+  (modelFromJson [] << decodeJson <| jsonStr, Cmd.none)
 
 program = 
   Html.App.programWithFlags

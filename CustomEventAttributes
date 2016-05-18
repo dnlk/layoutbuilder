@@ -1,0 +1,18 @@
+
+
+onClickNoProp : Decoder msg -> Attribute msg
+onClickNoProp decoder =
+  onWithOptions 
+    "click" 
+    { stopPropagation = True, preventDefault = False } 
+    decoder
+
+
+clickableAttribute : List Int -> TreeCmd -> Attribute Msg
+clickableAttribute pathFromRoot cmd =
+  onClickNoProp << succeed <| ClickEl cmd (Just pathFromRoot)
+
+clickableAttributeCorner : Corner -> PathFromRoot -> Position -> Dimensions -> Attribute Msg
+clickableAttributeCorner corner pathFromRoot initialPos initialDims =
+  onClickNoProp 
+    (Decode.map (\p -> ControllerBoxClick corner p pathFromRoot initialPos initialDims) Mouse.position)
