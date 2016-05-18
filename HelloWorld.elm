@@ -12,6 +12,7 @@ import Html.App
 import Platform.Cmd as Cmd exposing (Cmd)
 import Platform.Sub as Sub exposing (Sub)
 import Mouse
+import Keyboard
 
 import Decoder exposing (decodeJson)
 import Types exposing (..)
@@ -25,6 +26,7 @@ subscriptions model =
   Sub.batch
     [ jsonMessage Init
     , Mouse.moves MouseMove
+    , Keyboard.presses KeyPress
     ]
 
 {- Custom Html Event Handlers -}
@@ -45,6 +47,11 @@ clickableAttributeCorner : Corner -> PathFromRoot -> Position -> Dimensions -> A
 clickableAttributeCorner corner pathFromRoot initialPos initialDims =
   onClickNoProp 
     (Decode.map (\p -> ControllerBoxClick corner p pathFromRoot initialPos initialDims) Mouse.position)
+
+clickableAttributeMover : PathFromRoot -> Position -> Attribute Msg
+clickableAttributeMover pathFromRoot initialPos =
+  onClickNoProp
+    (Decode.map (\p -> MoverBoxClick p pathFromRoot initialPos) Mouse.position)
 
 {- General Utils -}
 
@@ -157,6 +164,7 @@ updateDimensions clickedCorner pMouse mRecord =
       BottomRight -> { mRecord | dimensions = (dimX + dx, dimY + dy), position = (posX, posY) }
       BottomLeft -> { mRecord | dimensions = (dimX - dx, dimY + dy), position = (posX + dx, posY)}
       TopLeft -> { mRecord | dimensions = (dimX - dx, dimY - dy), position = (posX + dx, posY + dy)}
+      TopCenter -> { mRecord | dimensions = (dimX, dimY), position = (posX + dx, posY + dy)}
 
 
 
@@ -173,6 +181,35 @@ resizeClicked pMouse mTree =
         Nothing -> ModelTree { mRecord | children = (List.map (resizeClicked pMouse) mRecord.children)}
 
         Just clickedCorner -> ModelTree <| updateDimensions clickedCorner pMouse mRecord
+
+isUnClicked : ModelTree -> Bool
+isUnClicked modelTree =
+  case modelTree of
+     EmptyModel -> True
+     ModelTree mRecord ->
+      case mRecord.controllers of 
+        [] -> True
+        _ -> False
+
+deleteClickedNode : ModelTree -> ModelTree
+deleteClickedNode mTree =
+  case mTree of
+
+    EmptyModel -> EmptyModel
+
+    ModelTree mRecord ->
+      let
+        nonClickedChildren = List.filter isUnClicked mRecord.children
+        newChildren = List.map deleteClickedNode nonClickedChildren
+      in
+        ModelTree { mRecord | children = newChildren}
+
+
+handleKeyPress : Int -> ModelTree -> ModelTree
+handleKeyPress x mTree=
+  if x == 100
+  then deleteClickedNode mTree
+  else mTree
 
 
 {- Intermediate model represntation -}
@@ -211,6 +248,10 @@ updateModelTree msg completeModelTree =
     ClickEl _ _ -> (completeModelTree, Cmd.none)
 
     ControllerBoxClick corner p (Just path) pos dim -> (toggleControllerResizeClick corner path p pos dim completeModelTree, Cmd.none)
+
+    --MoverBoxClick pClick (Just path) initialPos -> (toggleMoverBoxClick path pClick initialPos completeModelTree, Cmd.none)
+
+    KeyPress x -> (handleKeyPress x completeModelTree, Cmd.none)
 
     MouseMove p -> (resizeClicked p completeModelTree, Cmd.none)
 
@@ -273,6 +314,7 @@ resizeControllerStyle corner (x, y) =
       BottomRight -> (("bottom", px 0), ("right", px 0))
       BottomLeft -> (("bottom", px 0), ("left", px 0))
       TopLeft -> (("top", px 0), ("left", px 0))
+      TopCenter -> (("top", px 0), ("left", px 15))
   in
     style
       [ ("position", "absolute")
@@ -294,14 +336,13 @@ resizeControllerHtml : Corner -> Dimensions -> PathFromRoot -> ModelRecord -> Ht
 resizeControllerHtml corner dimensions pathFromRoot mRecord =
   div (resizeControllerAttributes corner dimensions pathFromRoot mRecord) []
 
-
 controllerToHtml : ModelRecord -> Controller -> Html Msg
 controllerToHtml modelRecord controller =
   div
     (makeControllerAttributes modelRecord controller)
     (List.map 
       (\c -> resizeControllerHtml c (10, 10) (Just modelRecord.pathFromRoot) modelRecord) 
-      [TopRight, BottomRight, BottomLeft, TopLeft])
+      [TopRight, BottomRight, BottomLeft, TopLeft, TopCenter])
 
 treeToHtml : ModelTree -> Html Msg
 treeToHtml modelTree =

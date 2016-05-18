@@ -10,6 +10,7 @@ type Corner
   | BottomRight
   | BottomLeft
   | TopLeft
+  | TopCenter
 
 type  JsonTree = JsonTree JsonRecord
 type alias JsonRecord = 
@@ -60,7 +61,9 @@ type Msg
   = Init JsonStr
   | ClickEl TreeCmd PathFromRoot
   | ControllerBoxClick Corner {x : Int, y : Int } PathFromRoot Position Dimensions
+  | MoverBoxClick PositionRec PathFromRoot Position
   | MouseMove PositionRec
+  | KeyPress Int
   --| ControllerBoxDrag Corner Position PathFromRoot
 
   --| ClickEl (Maybe (List Int))
